@@ -1,0 +1,30 @@
+@incl <stdio>
+
+num32 test : 2
+num16 test3 : 14
+char chartest : 'A'
+
+num16 n1 : 1
+num16 n2 : 1
+num16 n3 : 1
+
+box _start[] (
+    open some_func["hello"]
+
+    test : n1 + n2 + n3
+
+    open trapf[]
+    
+    open exit[0]
+)
+
+box test[num32 test_arg] (
+    num32 localvar : 0
+    localvar : localvar + test_arg
+)
+
+box some_func[char l] (
+    num32 localvar : 0
+
+    ret 0
+)
