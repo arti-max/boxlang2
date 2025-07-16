@@ -1,0 +1,12 @@
+@incl <stdio>
+
+num32 numbers[5]
+num32 counter : 0
+
+box _start[] (
+    open clear_screen[]
+    
+    open print["Hello"]
+
+    open trapf[]
+)

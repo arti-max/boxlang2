@@ -1,3 +1,5 @@
+jmp _start
+
 ; stdio.asm - Standard input/output library for BoxLang
 ; Direct video memory access without BIOS dependency
 
@@ -292,3 +294,25 @@ print_char_standalone:
     sub %esp 1
     pop %ebp
     rts
+
+
+_start:
+    add %ebp 1
+        mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_counter
+    sd %ebx %eax
+
+    jsr clear_screen
+    mov %eax __str_0
+    psh %eax
+    jsr print
+    add %esp 4
+    jsr trapf
+    hlt ; Program end
+
+; === Data Section ===
+__var_numbers: reserve 20 bytes
+__var_counter: reserve 4 bytes
+__str_0: bytes "Hello" 0

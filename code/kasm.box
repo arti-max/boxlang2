@@ -1,0 +1,18 @@
+@incl <stdio>
+
+num16 lol : 42
+
+box _start[] (
+
+    open kasm["mov %e8 1990"]
+    ##open kasmf["mov %e9 {}", lol]
+
+    open trapf[]
+
+    open exit[0]
+)
+
+
+box popa[] (
+
+)

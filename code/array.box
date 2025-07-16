@@ -1,0 +1,35 @@
+@incl <stdio>
+
+num32 global_arr[5]
+num32 global_var : 100
+num32 result : 0
+
+box _start[] (
+    open hlo["hello"]
+
+    open trapf[]
+    ## Инициализация глобального массива
+    global_arr[0] : 10
+    global_arr[1] : 20
+    global_arr[4] : 50
+
+    open trapf[]
+    ## Работа с локальным массивом
+    num32 local_arr[3]
+    local_arr[0] : 111
+    local_arr[2] : 333
+
+    open trapf[]
+    
+    ## Чтение из массивов и вычисления
+    result : global_arr[1] + local_arr[2]  ## result = 20 + 333 = 353
+
+    open trapf[]
+    
+    ## Передача результата в функцию (для проверки)
+    ## open print_num[result]
+)
+
+box hlo[char c] (
+
+)

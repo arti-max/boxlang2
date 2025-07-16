@@ -1,3 +1,5 @@
+jmp _start
+
 ; stdio.asm - Standard input/output library for BoxLang
 ; Direct video memory access without BIOS dependency
 
@@ -182,7 +184,7 @@ print_num:
     ; Print minus sign
     psh %eax
     mov %eax 45  ; '-'
-    jsr print_char_standalone  ; Use standalone function
+    jsr .print_char
     pop %eax
     
     ; Make number positive
@@ -192,6 +194,7 @@ print_num:
     
 .print_num_positive:
     mov %ebx 0          ; Digit counter
+    mov %esi %esp       ; Remember stack position
     
     ; Extract digits (in reverse order)
 .extract_digits:
@@ -209,13 +212,13 @@ print_num:
     cmp %ebx 0
     je .print_num_done
     pop %eax
-    jsr print_char_standalone
+    jsr .print_char
     sub %ebx 1
     jmp .print_digits
     
 .print_num_zero:
     mov %eax 48         ; '0'
-    jsr print_char_standalone
+    jsr .print_char
     
 .print_num_done:
     pop %esi
@@ -227,68 +230,140 @@ print_num:
     pop %ebp
     rts
 
-; Standalone function to print a single character
-; %eax = character to print
-print_char_standalone:
+
+
+add_two_nums:
     psh %ebp
     mov %ebp %esp
     add %ebp 1
-    psh %ebx
-    psh %ecx
-    psh %edx
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
     psh %eax
-    
-    ; Calculate video memory address
-    mov %ebx cursor_y
-    ld %ebx %ecx       ; %ecx = y
-    mov %edx 80
-    mul %ecx %edx      ; %ecx = y * 80
-    mov %ebx cursor_x
-    ld %ebx %edx       ; %edx = x
-    add %ecx %edx      ; %ecx = y * 80 + x
-    add %ecx %ecx      ; %ecx = (y * 80 + x) * 2 (2 bytes per char)
-    add %ecx $4F0000   ; %ecx = video memory address
-    
-    ; Store character
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax
     pop %eax
-    sb %ecx %eax
-    
-    ; Store attribute (white on black = 0x07)
-    add %ecx 1
-    mov %eax 7
-    sb %ecx %eax
-    
-    ; Advance cursor
-    mov %ebx cursor_x
-    ld %ebx %eax
-    add %eax 1
-    cmp %eax 80
-    jl .char_no_wrap
-    
-    ; Wrap to next line
-    mov %eax 0
-    mov %ebx cursor_x
-    sd %ebx %eax
-    mov %ebx cursor_y
-    ld %ebx %eax
-    add %eax 1
-    cmp %eax 60
-    jl .char_wrap_ok
-    mov %eax 0
-.char_wrap_ok:
-    mov %ebx cursor_y
-    sd %ebx %eax
-    jmp .char_done
-    
-.char_no_wrap:
-    mov %ebx cursor_x
-    sd %ebx %eax
-
-.char_done:
-    pop %edx
-    pop %ecx
-    pop %ebx
+    add %eax %ebx
+    jmp .L_ret_add_two_nums
+.L_ret_add_two_nums:
     mov %esp %ebp
     sub %esp 1
     pop %ebp
     rts
+
+_start:
+    add %ebp 1
+    sub %esp 4 ; Allocate space for local variables and arrays
+        mov %eax 3
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_final_result
+    sd %ebx %eax
+    mov %eax 1
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_func_result
+    sd %ebx %eax
+    mov %eax 2
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_copy_var
+    sd %ebx %eax
+
+    mov %eax __str_0
+    psh %eax
+    jsr for_easy_find_data_sec
+    add %esp 4
+    mov %eax 11
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %eax 25
+    psh %eax
+    mov %eax 10
+    psh %eax
+    jsr add_two_nums
+    add %esp 8
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_func_result
+    sd %ebx %eax
+    jsr trapf
+    mov %eax 25
+    psh %eax
+    mov %eax 10
+    psh %eax
+    jsr add_two_nums
+    add %esp 8
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %ebx __var_func_result
+    ld %ebx %eax
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_copy_var
+    sd %ebx %eax
+    jsr trapf
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    psh %eax
+    mov %eax 2
+    mov %ebx %eax
+    pop %eax
+    mul %eax %ebx
+    psh %eax
+    mov %eax 3
+    psh %eax
+    mov %eax 100
+    psh %eax
+    jsr add_two_nums
+    add %esp 8
+    mov %ebx %eax
+    pop %eax
+    add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_final_result
+    sd %ebx %eax
+    jsr trapf
+    hlt ; Program end
+
+for_easy_find_data_sec:
+    psh %ebp
+    mov %ebp %esp
+    add %ebp 1
+    sub %esp 4 ; Allocate space for local variables and arrays
+    mov %eax 12
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    psh %eax ; Save expression result
+    pop %eax ; Restore expression result
+    mov %ebx __var_test
+    sd %ebx %eax
+.L_ret_for_easy_find_data_sec:
+    mov %eax 0 ; Default return value
+    mov %esp %ebp
+    sub %esp 1
+    pop %ebp
+    rts
+
+; === Data Section ===
+__var_final_result: reserve 4 bytes
+__var_func_result: reserve 4 bytes
+__var_copy_var: reserve 4 bytes
+__var_test: reserve 4 bytes
+__str_0: bytes "hello" 0

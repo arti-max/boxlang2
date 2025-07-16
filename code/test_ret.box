@@ -1,0 +1,36 @@
+@incl <stdio>
+
+num32 final_result : 3
+num32 func_result : 1
+num32 copy_var : 2
+num32 test
+
+box add_two_nums[num32 a, num32 b] (
+    ret a + b
+)
+
+box _start[] (
+    open for_easy_find_data_sec["hello"]
+
+    num32 local_res : 11
+
+    func_result : open add_two_nums[10, 25]
+
+    open trapf[]
+    ## Присваиваем переменной результат вызова функции
+    local_res : open add_two_nums[10, 25] ## local_res станет 35
+
+    copy_var : func_result
+
+    open trapf[]
+    ## Можно использовать результат в других выражениях
+    final_result : local_res * 2 + open add_two_nums[100, 3] ## final_result = 35 * 2 + 103 = 173
+
+    open trapf[]
+)
+
+box for_easy_find_data_sec[char h] (
+    ## код для проверки моего исправления локальных переменных, всё работает
+    num32 local : 12
+    test:local
+)
