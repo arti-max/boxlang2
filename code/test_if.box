@@ -1,0 +1,40 @@
+@incl <stdprint>
+@incl <stdio>
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    num16 arr[2]
+    arr[0] : 5  ## A
+    arr[1] : 10 ## B
+
+    num32 a : 5
+    num32 b : 10
+
+    if [arr[0] < arr[1]] (
+        open print["a is less than b$"]
+    ) else (
+        open print["a is NOT less than b$"]
+    )
+
+    if [arr[1] > arr[0]] (
+        open print["b is greater than a$"]
+    )
+
+    if [arr[0] == 5] (
+        open print["a is 5!$"]
+    ) else (
+        ## этот блок не должен выполниться
+        open print["Error in logic!$"]
+    )
+    
+    if [arr[1] != 10] (
+        ## и этот тоже
+        open print["Error in logic 2!$"]
+    ) else (
+        open print["b is indeed 10!$"]
+    )
+    
+    open trapf[]
+)

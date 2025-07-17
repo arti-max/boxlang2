@@ -12,7 +12,11 @@ class Lexer:
         self.keywords = {
             'box': TokenType.BOX, 'open': TokenType.OPEN, 'char': TokenType.CHAR,
             'num16': TokenType.NUM16, 'num32': TokenType.NUM32, 'num24': TokenType.NUM24,
-            'float': TokenType.FLOAT, 'ret': TokenType.RET
+            'float': TokenType.FLOAT, 'ret': TokenType.RET,
+            'if': TokenType.IF, 'else': TokenType.ELSE,
+            'match': TokenType.MATCH, 'case': TokenType.CASE, 'default': TokenType.DEFAULT,
+            'while': TokenType.WHILE,
+            
         }
         
         # Сразу токенизируем весь код
@@ -84,14 +88,7 @@ class Lexer:
 
     def _tokenize(self):
         tokens = []
-        single_chars = {
-            '[': TokenType.BRACKET_OPEN, ']': TokenType.BRACKET_CLOSE, '(': TokenType.PAREN_OPEN,
-            ')': TokenType.PAREN_CLOSE, '{': TokenType.CURLY_OPEN, '}': TokenType.CURLY_CLOSE,
-            '<': TokenType.ANGLE_OPEN, '>': TokenType.ANGLE_CLOSE, ':': TokenType.COLON,
-            '=': TokenType.EQ, '@': TokenType.AT, '+': TokenType.PLUS, '-': TokenType.MINUS,
-            '*': TokenType.MULTIPLY, '/': TokenType.DIVIDE, ',': TokenType.COMMA,
-        }
-
+        
         while self.current_char is not None:
             if self.current_char.isspace():
                 self.skip_whitespace()
@@ -116,16 +113,58 @@ class Lexer:
             if self.current_char == "'":
                 tokens.append(self.char_literal())
                 continue
+
+            # === ИСПРАВЛЕННАЯ ЛОГИКА ОБРАБОТКИ ОПЕРАТОРОВ ===
             
-            if self.current_char in single_chars:
-                token_type = single_chars[self.current_char]
-                char = self.current_char
-                token = self.make_token(token_type, char)
-                self.advance()
-                tokens.append(token)
+            char = self.current_char
+            peek = self.peek_char()
+
+            if char == '=' and peek == '=':
+                tokens.append(self.make_token(TokenType.EQ_EQ, '=='))
+                self.advance(2)
                 continue
             
-            # Если дошли сюда, значит символ неизвестен
+            if char == '!' and peek == '=':
+                tokens.append(self.make_token(TokenType.NOT_EQ, '!='))
+                self.advance(2)
+                continue
+            
+            if char == '<':
+                if peek == '=':
+                    tokens.append(self.make_token(TokenType.LTE, '<='))
+                    self.advance(2)
+                else:
+                    tokens.append(self.make_token(TokenType.LT, '<'))
+                    self.advance()
+                continue
+            
+            if char == '>':
+                if peek == '=':
+                    tokens.append(self.make_token(TokenType.GTE, '>='))
+                    self.advance(2)
+                else:
+                    tokens.append(self.make_token(TokenType.GT, '>'))
+                    self.advance()
+                continue
+
+            # Карта для остальных однозначных токенов
+            single_char_map = {
+                '+': TokenType.PLUS, '-': TokenType.MINUS, '*': TokenType.MULTIPLY, '/': TokenType.DIVIDE,
+                ':': TokenType.COLON,
+                '[': TokenType.BRACKET_OPEN, ']': TokenType.BRACKET_CLOSE,
+                '(': TokenType.PAREN_OPEN, ')': TokenType.PAREN_CLOSE,
+                '{': TokenType.CURLY_OPEN, '}': TokenType.CURLY_CLOSE,
+                ',': TokenType.COMMA, '@': TokenType.AT, '&': TokenType.AMPERSAND
+            }
+
+            if char in single_char_map:
+                tokens.append(self.make_token(single_char_map[char], char))
+                self.advance()
+                continue
+            
+            # ==============================================================
+            
+            # Если мы дошли сюда, символ действительно неизвестен
             raise Exception(f"Unknown character: '{self.current_char}' at {self.line}:{self.column}")
 
         tokens.append(self.make_token(TokenType.EOF, None))
@@ -137,6 +176,13 @@ class Lexer:
         if self.token_index < len(self.tokens) - 1:
             self.token_index += 1
         return token
+    
+    def peek_char(self):
+        """'Подсматривает' следующий символ, не сдвигая указатель."""
+        peek_pos = self.pos + 1
+        if peek_pos > len(self.text) - 1:
+            return None
+        return self.text[peek_pos]
     
     def peek(self):
         """'Подсматривает' следующий токен, не сдвигая указатель."""

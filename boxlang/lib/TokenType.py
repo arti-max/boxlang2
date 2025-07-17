@@ -13,17 +13,31 @@ class TokenType(Enum):
     KASM = auto()           # kasm["mov %eax 1"]
     KASMF = auto()          # kasmf["mov %eax {}", var]
     RET = auto()            # ret
+    IF = auto()             # if
+    ELSE = auto()           # else
+    MATCH = auto()          # match
+    CASE = auto()           # case
+    DEFAULT = auto()        # default
+    WHILE = auto()          # while
     # datatypes
     CHAR = auto()   
     NUM16 = auto()
     NUM24 = auto()
     NUM32 = auto()
     FLOAT = auto()
+    # operators
     ASSIGN = auto()           # :
     PLUS = auto()             # +
     MINUS = auto()            # -
     MULTIPLY = auto()         # *
     DIVIDE = auto()           # /
+    EQ_EQ = auto()            # ==
+    NOT_EQ = auto()           # !=
+    LT = auto()               # <
+    GT = auto()               # >
+    LTE = auto()              # <=
+    GTE = auto()              # >=
+    AMPERSAND = auto()        # & (взятие адреса)
     # symbols
     BRACKET_OPEN = auto()   # [
     BRACKET_CLOSE = auto()  # ]
@@ -36,7 +50,7 @@ class TokenType(Enum):
     COLON = auto()          # :
     PERCENT = auto()        # %
     COMMA = auto()          # ,
-    AT = auto()             # @
+    AT = auto()             # @ (будет использоваться для разыменования)
     DOT = auto()            # .
     ARROW = auto()          # ->
     EQ = auto()             # =

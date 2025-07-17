@@ -1,12 +1,14 @@
 @incl <stdio>
-
-num32 numbers[5]
-num32 counter : 0
+@incl <stdprint>
 
 box _start[] (
+    open init_text_mode[]
     open clear_screen[]
     
-    open print["Hello"]
-
+    open print["Hello, BoxLang!$"]  ## $ = новая строка как в тесте
+    open print["Number: "]
+    open print_num[42]
+    open print["$Done!"]
+    
     open trapf[]
 )

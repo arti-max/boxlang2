@@ -1,0 +1,37 @@
+@incl <stdprint>
+@incl <stdio>
+
+num32 global_arr[5]
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    num32 i : 0
+
+    num32 reslt : 0
+
+    num32 arr[2]
+    arr[0] : 10
+    arr[1] : 50
+
+    global_arr[0] : 100
+    global_arr[1] : 50
+    
+    open print["Counting up:$"]
+    
+    while [i < 5] (
+        open print_num[i]
+        open print["$"]
+        i : i + 1
+    )
+    
+    open print["Done!$"]
+
+    reslt : arr[0] + global_arr[1]
+
+    open print_num[reslt]
+    open print["$"]
+
+    open trapf[]
+)

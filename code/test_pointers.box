@@ -1,0 +1,48 @@
+@incl <stdio>
+@incl <stdprint>
+
+num32 global_var : 100
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    num32 local_var : 42
+    num32* ptr : &local_var
+
+    open print["Value of local_var: "]
+    open print_num[local_var]
+    open print["$"]
+
+    open print["Value via pointer: "]
+    open print_num[@ptr]
+    open print["$"]
+    
+    @ptr : 999
+    
+    open print["New value of local_var: "]
+    open print_num[local_var]
+    open print["$"]
+
+    ptr : &global_var
+    open print["Value of global_var via pointer: "]
+    open print_num[@ptr]
+    open print["$"]
+
+    num32 val : 10
+    open print["Value before func: "]
+    open print_num[val]
+    open print["$"]
+
+    open modify_val[&val]
+
+    open print["Value after func: "]
+    open print_num[val]
+    open print["$"]
+    
+    open trapf[]
+)
+
+box modify_val[num32* p] (
+    @p : 555
+)

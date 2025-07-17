@@ -1,0 +1,5 @@
+
+
+box include_function[] (
+    open print["This is included function, lol$"]
+)
