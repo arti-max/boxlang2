@@ -71,13 +71,13 @@ box _start[] (
 
 ```rust
 ## Объявление локального массива из 10 целых чисел
-num32 local_array[^10]
+num32 local_array[10]
 
 ## Запись в первый элемент массива
-local_array[^0] : 123
+local_array[0] : 123
 
 ## Чтение из второго элемента
-num32 value : local_array[^1]
+num32 value : local_array[1]
 ```
 
 
@@ -169,10 +169,10 @@ while [i < 5] (
 ```rust
 num32 x : 2
 match [x] (
-    case [^1] (
+    case [1] (
         open print["one$"]
     )
-    case [^2] (
+    case [2] (
         open print["two$"]  ## Этот блок выполнится
     )
     default (
@@ -298,34 +298,8 @@ box _start[] (
 
     ## Вызываем отладочную ловушку.
     ## Это остановит программу, чтобы мы могли увидеть результат.
-    ## Чтобы продолжить выполнение и закрыть окно, введите в консоль эмулятора 'c' и нажмите Enter.
+    ## Чтобы продолжить выполнение и закрыть окно, введите в консоль эмулятора 'R' и нажмите Enter.
     open trapf[]
 )
 ```
-
-<div style="text-align: center">⁂</div>
-
-[^1]: kasm.txt
-
-[^2]: cpu32.h
-
-[^3]: cpu32h.h
-
-[^4]: gpu.h
-
-[^5]: gpufont.h
-
-[^6]: gpuh.h
-
-[^7]: spu.h
-
-[^8]: spuh.h
-
-[^9]: interrupts.h
-
-[^10]: std.h
-
-[^11]: izobrazhenie.jpg
-
-[^12]: izobrazhenie.jpg
 
