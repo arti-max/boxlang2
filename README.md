@@ -56,11 +56,11 @@ box _start[] (
 
 ```rust
 ## Объявление локального массива из 10 целых чисел
-num32 local_array[^10]
+num32 local_array[10]
 
 ## Запись в элемент массива
-local_array[^0] : 123
-local_array[^1] : 456
+local_array[0] : 123
+local_array[1] : 456
 
 ## Чтение из элемента массива
 num32 value : local_array[^0]
@@ -322,10 +322,10 @@ box _start[] (
 
 ```rust
 ## Объявление локального массива из 10 целых чисел
-num32 local_array[^10]
+num32 local_array[10]
 
 ## Запись в первый элемент массива
-local_array[^0] : 123
+local_array[0] : 123
 
 ## Чтение из второго элемента
 num32 value : local_array[^1]
@@ -422,10 +422,10 @@ while [i < 5] (
 ```rust
 num32 x : 2
 match [x] (
-    case [^1] (
+    case [1] (
         open print["one$"]
     )
-    case [^2] (
+    case [2] (
         open print["two$"]  ## Этот блок выполнится
     )
     default (
