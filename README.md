@@ -150,10 +150,10 @@ while [i < 5] (
 ```rust
 num32 x : 2
 match [x] (
-    case [^1] (
+    case [1] (
         open print["one$"]
     )
-    case [^2] (
+    case [2] (
         open print["two$"]  ## Этот блок выполнится
     )
     default (
