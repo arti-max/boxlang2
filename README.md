@@ -243,5 +243,3 @@ box _start[] (
 )
 ```
 
-<div style="text-align: center">⁂</div>
-
