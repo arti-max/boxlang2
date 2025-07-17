@@ -35,3 +35,18 @@ trapf:
     sub %esp 1
     pop %ebp
     rts
+
+
+; void VIDEO_FLUSH()
+; Debugging trap function
+VIDEO_FLUSH:
+    psh %ebp
+    mov %ebp %esp
+    add %ebp 1
+    
+    int $11
+    
+    mov %esp %ebp
+    sub %esp 1
+    pop %ebp
+    rts

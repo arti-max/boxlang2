@@ -85,6 +85,38 @@ class Lexer:
         if self.current_char != "'": raise Exception("Unterminated char literal, expected closing '")
         self.advance() # '
         return Token(TokenType.CHAR_LIT, ord(char_value), self.line, start_col)
+    
+    def hex_or_binary_number(self):
+        """Парсит шестнадцатеричное (0x) или двоичное (0b) число."""
+        start_col = self.column
+        line = self.line
+        
+        self.advance() # Пропускаем '0'
+        
+        base = 10
+        allowed_chars = "0123456789"
+        
+        if self.current_char in 'xX':
+            base = 16
+            allowed_chars = "0123456789abcdefABCDEF"
+            self.advance() # Пропускаем 'x' или 'X'
+        elif self.current_char in 'bB':
+            base = 2
+            allowed_chars = "01"
+            self.advance() # Пропускаем 'b' или 'B'
+        
+        result_str = ''
+        while self.current_char is not None and self.current_char in allowed_chars:
+            result_str += self.current_char
+            self.advance()
+            
+        if not result_str:
+            # Это была просто цифра 0, а не префикс
+            return Token(TokenType.NUMBER, 0, line, start_col)
+
+        # Конвертируем строку в число с указанием системы счисления
+        value = int(result_str, base)
+        return Token(TokenType.NUMBER, value, line, start_col)
 
     def _tokenize(self):
         tokens = []
@@ -100,6 +132,10 @@ class Lexer:
 
             if self.current_char.isalpha() or self.current_char == '_':
                 tokens.append(self.identifier())
+                continue
+            
+            if self.current_char == '0' and self.peek_char() in 'xXbB':
+                tokens.append(self.hex_or_binary_number())
                 continue
             
             if self.current_char.isdigit():

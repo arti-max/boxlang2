@@ -1,0 +1,39 @@
+@incl <stdio>
+
+num16 COLOR : 0b111110000011111
+
+num32 index : 0
+
+box _start[] (
+
+    open set_color_to_table[COLOR, 1]
+    open draw_pixel[1, 1, 1]
+
+    while [index < 10000] (
+        open VIDEO_FLUSH[]
+        index : index + 1
+    )
+
+)
+
+box get_coordinate[num32 x, num32 y] (
+    num32 part1 : y * 640
+    num32 part2 : part1 + x
+    ret part2
+)
+
+box set_color_to_table[num16 col, num32 indx] (
+    num32 p1 : indx * 2
+    num16* addr : 0x4A0000 + p1
+    @addr : col
+)
+
+box draw_pixel[num32 x, num32 y, char color_id] (
+    char* xyid : 0x400000 + open get_coordinate[x, y]
+    @xyid : color_id
+)
+
+box init_graphics_mode[] (
+    char* ptr : 0x49FF00
+    @ptr : 1
+)
