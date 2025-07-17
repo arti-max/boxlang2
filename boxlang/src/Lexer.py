@@ -16,7 +16,7 @@ class Lexer:
             'if': TokenType.IF, 'else': TokenType.ELSE,
             'match': TokenType.MATCH, 'case': TokenType.CASE, 'default': TokenType.DEFAULT,
             'while': TokenType.WHILE,
-            
+            'kasm': TokenType.KASM, 'kasmf': TokenType.KASMF,
         }
         
         # Сразу токенизируем весь код

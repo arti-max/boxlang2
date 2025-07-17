@@ -76,6 +76,11 @@ class Parser:
         """Парсит одну инструкцию."""
         token_type = self.current_token.type
 
+        if token_type == TokenType.KASM:
+            return self.parse_kasm_statement()
+        if token_type == TokenType.KASMF:
+            return self.parse_kasmf_statement()
+
         # Обработка управляющих конструкций остается прежней
         if token_type == TokenType.IF:
             return self.parse_if_statement()
@@ -371,6 +376,41 @@ class Parser:
         self.eat(TokenType.PAREN_CLOSE)
         
         return AST.FunctionDeclarationNode(name.value, params, body)
+    
+    def parse_kasm_statement(self):
+        """Парсит 'kasm["..."]'."""
+        self.eat(TokenType.KASM)
+        self.eat(TokenType.BRACKET_OPEN)
+        
+        string_token = self.current_token
+        if string_token.type != TokenType.STRING:
+            self.error_handler.raise_syntax_error("Expected a string literal inside kasm.", string_token)
+        self.eat(TokenType.STRING)
+        
+        self.eat(TokenType.BRACKET_CLOSE)
+        return AST.KasmNode(string_token.value)
+
+    def parse_kasmf_statement(self):
+        """Парсит 'kasmf["...", arg1, arg2]'."""
+        self.eat(TokenType.KASMF)
+        self.eat(TokenType.BRACKET_OPEN)
+        
+        format_string_token = self.current_token
+        if format_string_token.type != TokenType.STRING:
+            self.error_handler.raise_syntax_error("Expected a format string literal inside kasmf.", format_string_token)
+        self.eat(TokenType.STRING)
+        
+        args = []
+        if self.current_token.type == TokenType.COMMA:
+            self.eat(TokenType.COMMA)
+            # Парсим список выражений-аргументов
+            args.append(self.parse_expression())
+            while self.current_token.type == TokenType.COMMA:
+                self.eat(TokenType.COMMA)
+                args.append(self.parse_expression())
+
+        self.eat(TokenType.BRACKET_CLOSE)
+        return AST.KasmfNode(format_string_token.value, args)
 
     def parse(self):
         """Главный метод парсера."""

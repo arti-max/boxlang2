@@ -4,14 +4,31 @@ num16 lol : 42
 
 box _start[] (
 
-    open kasm["mov %e8 1990"]
-    ##open kasmf["mov %e9 {}", lol]
+    ## kasm["mov %esi 1990"]
+    ## kasmf["mov %edx {}", lol]
+
+    open play_sound[]
+
+    open trapf[]
+)
+
+box play_sound[] (
+    ## Готовим параметры
+    num32 frequency : 440
+    num32 volume_and_channel : 0x0F ## Канал 0, громкость 15
+    ## A=10, D=20, S=50, R=10 тиков
+    num32 adsr : 0x0A14320A
+
+    ## Загружаем в регистры через ассемблерную вставку
+    kasmf["mov %esi {}", frequency]
+    kasmf["mov %eax {}", volume_and_channel]
+    kasmf["mov %edx {}", adsr]
 
     open trapf[]
 
-    open exit[0]
+    ## Вызываем прерывание
+    kasm["int $23"]
 )
-
 
 box popa[] (
 

@@ -19,6 +19,7 @@ class Compiler:
         self.array_sizes = {}          # Хранит размеры массивов для проверки границ
         
         self.label_counter = 0
+        self.kasmf_reg_idx = 0
         
         # Регистрируем встроенные функции
         self._register_builtin_functions()
@@ -476,6 +477,49 @@ class Compiler:
     
     def visit_KasmNode(self, node):
         self.kasm_code += f"    {node.code_string}\n"
+        
+    def visit_KasmfNode(self, node):
+        """
+        Генерирует код для kasmf, изолируя побочные эффекты
+        вычисления аргументов с помощью стека.
+        """
+        temp_registers = [
+            "%e8", "%e9", "%e10", "%e11", "%e12", "%e13", "%e14", "%e15",
+            "%e16", "%e17", "%e18", "%e19", "%e20", "%e21", "%e22", "%e23",
+            "%e24", "%e25", "%e26", "%e27", "%e28", "%e29", "%e30", "%e31"
+        ]
+        
+        if len(node.args) > len(temp_registers):
+            raise ValueError(f"Too many arguments for kasmf, max supported is {len(temp_registers)}")
+
+        arg_reg_names = []
+        for i, arg_node in enumerate(node.args):
+            # 1. Сохраняем EAX в стек, чтобы защитить его от изменений.
+            self.kasm_code += "    psh %eax\n"
+            
+            # 2. Вычисляем аргумент. Результат, как обычно, окажется в EAX.
+            self.visit(arg_node)
+            
+            # 3. Выбираем временный регистр и перемещаем в него результат.
+            current_reg_idx = (self.kasmf_reg_idx + i) % len(temp_registers)
+            temp_reg = temp_registers[current_reg_idx]
+            self.kasm_code += f"    mov {temp_reg} %eax\n"
+            
+            # 4. Восстанавливаем EAX из стека.
+            self.kasm_code += "    pop %eax\n"
+            
+            arg_reg_names.append(temp_reg)
+
+        # Продвигаем глобальный счетчик, чтобы следующий вызов kasmf начал с нового места.
+        self.kasmf_reg_idx = (self.kasmf_reg_idx + len(node.args)) % len(temp_registers)
+            
+        # Форматируем итоговую ассемблерную строку.
+        try:
+            formatted_code = node.format_string.format(*arg_reg_names)
+        except IndexError:
+            raise ValueError("Number of placeholders '{}' in kasmf string does not match number of arguments.")
+            
+        self.kasm_code += f"    {formatted_code}\n"
 
     def visit_BinaryOperationNode(self, node):
         self.visit(node.left)
