@@ -1,0 +1,22 @@
+
+
+
+box exit[num32 code] (
+    kasmf["psh {}", code]
+    kasm["int $00"]
+)
+
+box trapf[] (
+    kasm["trap"]
+)
+
+box sum_n32[num32* array, num32 length] (
+    num32 i : 0
+    num32 sum : 0
+    while [i < length] (
+        sum : sum + array[i]
+        i : i + 1
+    )
+
+    ret sum
+)

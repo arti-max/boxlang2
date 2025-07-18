@@ -38,6 +38,8 @@ class Preprocessor:
                 if not os.path.exists(target_path):
                     if os.path.exists(target_path + '.asm'):
                         target_path += '.asm'
+                    elif os.path.exists(target_path + '.box'):
+                        target_path += '.box'
                     else:
                         raise FileNotFoundError(f"Стандартная библиотека не найдена: {lib_name}")
             else:

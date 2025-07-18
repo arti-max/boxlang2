@@ -17,6 +17,8 @@ class Lexer:
             'match': TokenType.MATCH, 'case': TokenType.CASE, 'default': TokenType.DEFAULT,
             'while': TokenType.WHILE,
             'kasm': TokenType.KASM, 'kasmf': TokenType.KASMF,
+            'for': TokenType.FOR,
+            'struct': TokenType.STRUCT,
         }
         
         # Сразу токенизируем весь код
@@ -186,11 +188,12 @@ class Lexer:
             # Карта для остальных однозначных токенов
             single_char_map = {
                 '+': TokenType.PLUS, '-': TokenType.MINUS, '*': TokenType.MULTIPLY, '/': TokenType.DIVIDE,
-                ':': TokenType.COLON,
+                ':': TokenType.COLON, ';': TokenType.SEMICOLON,
                 '[': TokenType.BRACKET_OPEN, ']': TokenType.BRACKET_CLOSE,
                 '(': TokenType.PAREN_OPEN, ')': TokenType.PAREN_CLOSE,
                 '{': TokenType.CURLY_OPEN, '}': TokenType.CURLY_CLOSE,
-                ',': TokenType.COMMA, '@': TokenType.AT, '&': TokenType.AMPERSAND
+                ',': TokenType.COMMA, '@': TokenType.AT, '&': TokenType.AMPERSAND,
+                '.': TokenType.DOT
             }
 
             if char in single_char_map:

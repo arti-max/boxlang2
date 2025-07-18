@@ -1,0 +1,24 @@
+@incl <stdlib>
+@incl <stdprint>
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    num32 array[5]
+
+    array[0] : 10 ## 10
+    array[1] : 25 ## 35
+    array[2] : 15 ## 50
+    array[3] : 20 ## 70
+    array[4] : 5  ## 75
+
+    num32 result : 0
+    result : open sum_n32[&array, 5]
+
+    open print_num[result]
+    open print["$"]
+    open print_num[&array]
+
+    open trapf[]
+)

@@ -76,26 +76,40 @@ class Parser:
         """Парсит одну инструкцию."""
         token_type = self.current_token.type
 
+        # Сначала проверяем на ключевые слова, начинающие инструкцию
         if token_type == TokenType.KASM:
             return self.parse_kasm_statement()
         if token_type == TokenType.KASMF:
             return self.parse_kasmf_statement()
-
-        # Обработка управляющих конструкций остается прежней
+        if token_type == TokenType.FOR:
+            return self.parse_for_statement()
         if token_type == TokenType.IF:
             return self.parse_if_statement()
         if token_type == TokenType.MATCH:
             return self.parse_match_statement()
         if token_type == TokenType.WHILE:
             return self.parse_while_statement()
-        if token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR]:
-            return self.parse_variable_or_array_declaration()
         if token_type == TokenType.RET:
             return self.parse_return_statement()
+
+        # --- НОВАЯ УЛУЧШЕННАЯ ЛОГИКА ---
+        # Определяем, является ли это объявлением переменной.
+        # Это объявление, если оно начинается со встроенного типа (num32 и т.д.)
+        # ИЛИ если это идентификатор, за которым следует другой идентификатор ("Player p1").
+        is_declaration = token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]
+        if not is_declaration and token_type == TokenType.IDENT:
+            # Заглядываем на один токен вперед, не "съедая" его
+            if self.lexer.peek().type == TokenType.IDENT:
+                is_declaration = True
         
-        # --- НОВАЯ ГИБКАЯ ЛОГИКА ---
+        if is_declaration:
+            return self.parse_variable_or_array_declaration()
+        
+        # Если это не объявление, то это должна быть инструкция на основе выражения:
+        # присваивание или вызов функции.
+        
         # Парсим левую часть как полноценное выражение.
-        # Это может быть 'my_var', 'my_array[0]' или '@my_ptr'.
+        # Это может быть 'my_var', 'my_array[0]', '@my_ptr' или вызов функции.
         left_node = self.parse_expression()
 
         # Если после выражения идет ':', значит, это присваивание.
@@ -103,7 +117,7 @@ class Parser:
             self.eat(TokenType.COLON)
             
             # Проверяем, что левая часть является допустимой целью (l-value)
-            if not isinstance(left_node, (AST.VariableReferenceNode, AST.ArrayAccessNode, AST.DereferenceNode)):
+            if not isinstance(left_node, (AST.VariableReferenceNode, AST.ArrayAccessNode, AST.DereferenceNode, AST.PropertyAccessNode)):
                 self.error_handler.raise_syntax_error(
                     "Invalid assignment target.", self.current_token
                 )
@@ -285,35 +299,62 @@ class Parser:
         return AST.AssignmentNode(left_node, expression)
 
     def parse_variable_or_array_access(self):
-        """Пarsit 'var' или 'arr[idx]'."""
-        var_name = self.current_token
+        """Парсит 'var', 'arr[idx]' или 'arr.length'."""
+        var_name_token = self.current_token
         self.eat(TokenType.IDENT)
         
         if self.current_token.type == TokenType.BRACKET_OPEN:
+            # Доступ к элементу массива: arr[idx]
             self.eat(TokenType.BRACKET_OPEN)
             index_node = self.parse_expression()
             self.eat(TokenType.BRACKET_CLOSE)
-            return AST.ArrayAccessNode(var_name.value, index_node)
+            return AST.ArrayAccessNode(var_name_token.value, index_node)
+        
+        elif self.current_token.type == TokenType.DOT:
+            # Доступ к свойству: arr.length
+            self.eat(TokenType.DOT)
+            property_name_token = self.current_token
+            self.eat(TokenType.IDENT)
+            return AST.PropertyAccessNode(var_name_token.value, property_name_token.value)
+        
         else:
-            return AST.VariableReferenceNode(var_name.value)
+            # Обычная ссылка на переменную
+            return AST.VariableReferenceNode(var_name_token.value)
             
     def parse_variable_or_array_declaration(self):
-        """Парсит 'num32 x', 'num32* p' и 'num32 arr[10]'."""
-        var_type_value = self.parse_type()  # <<< ИЗМЕНЕНИЕ
+        """Парсит 'num32 x', 'num32* p', 'num32 arr[10]' и 'Player p'."""
         
+        # Тип теперь может быть не только ключевым словом (num32),
+        # но и идентификатором (имя структуры, например, Player)
+        if self.current_token.type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]:
+             var_type_value = self.parse_type()
+        elif self.current_token.type == TokenType.IDENT:
+            # Это объявление переменной типа структуры, например 'Player p'
+            var_type_value = self.current_token.value
+            self.eat(TokenType.IDENT)
+        else:
+            self.error_handler.raise_syntax_error(
+                "Expected a data type or a struct name.", self.current_token
+            )
+
         var_name = self.current_token
         self.eat(TokenType.IDENT)
         
         if self.current_token.type == TokenType.BRACKET_OPEN:
+            # Массивы структур пока не поддерживаем, но основа заложена
             self.eat(TokenType.BRACKET_OPEN)
             size_node = self.parse_expression()
             self.eat(TokenType.BRACKET_CLOSE)
             return AST.ArrayDeclarationNode(var_type_value, var_name.value, size_node)
         
+        # --- ИСПРАВЛЕНИЕ НАЧАЛО ---
+        # Возвращаем старую, правильную логику. Парсер должен просто
+        # разбирать синтаксис, а не проверять правила.
         initial_value = None
         if self.current_token.type == TokenType.COLON:
             self.eat(TokenType.COLON)
             initial_value = self.parse_expression()
+        # --- ИСПРАВЛЕНИЕ КОНЕЦ ---
         
         return AST.VariableDeclarationNode(var_type_value, var_name.value, initial_value)
 
@@ -411,6 +452,55 @@ class Parser:
 
         self.eat(TokenType.BRACKET_CLOSE)
         return AST.KasmfNode(format_string_token.value, args)
+    
+    def parse_for_statement(self):
+        """Парсит конструкцию for [init; condition; increment] ( body )"""
+        self.eat(TokenType.FOR)
+        self.eat(TokenType.BRACKET_OPEN)
+
+        # Часть 1: Инициализация (может быть объявлением или присваиванием)
+        if self.current_token.type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR]:
+            init_node = self.parse_variable_or_array_declaration()
+        else:
+            init_node = self.parse_statement() # Используем parse_statement для присваивания
+        
+        self.eat(TokenType.SEMICOLON)
+
+        # Часть 2: Условие
+        condition_node = self.parse_expression()
+        self.eat(TokenType.SEMICOLON)
+
+        # Часть 3: Инкремент (это просто выражение, скорее всего присваивание)
+        increment_node = self.parse_statement()
+
+        self.eat(TokenType.BRACKET_CLOSE)
+        
+        self.eat(TokenType.PAREN_OPEN)
+        body = self.parse_block()
+        self.eat(TokenType.PAREN_CLOSE)
+
+        return AST.ForNode(init_node, condition_node, increment_node, body)
+    
+    def parse_struct_declaration(self):
+        """Парсит 'struct Name ( field_type field_name ... )'."""
+        self.eat(TokenType.STRUCT)
+        name_token = self.current_token
+        self.eat(TokenType.IDENT)
+        
+        self.eat(TokenType.PAREN_OPEN)
+        
+        fields = []
+        # Парсим поля, пока не встретим закрывающую скобку
+        while self.current_token.type != TokenType.PAREN_CLOSE:
+            field_type = self.parse_type()
+            field_name = self.current_token.value
+            self.eat(TokenType.IDENT)
+            fields.append((field_type, field_name))
+            
+        self.eat(TokenType.PAREN_CLOSE)
+        
+        return AST.StructDeclarationNode(name_token.value, fields)
+
 
     def parse(self):
         """Главный метод парсера."""
@@ -419,10 +509,16 @@ class Parser:
             token_type = self.current_token.type
             if token_type == TokenType.BOX:
                 declarations.append(self.parse_function_declaration())
-            elif token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR]:
+            # --- ИЗМЕНЕНИЕ НАЧАЛО ---
+            elif token_type == TokenType.STRUCT:
+                declarations.append(self.parse_struct_declaration())
+            # Теперь объявление переменной может начинаться с IDENT (имя структуры)
+            elif token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT, TokenType.IDENT]:
                 declarations.append(self.parse_variable_or_array_declaration())
+            # --- ИЗМЕНЕНИЕ КОНЕЦ ---
             else:
                 self.error_handler.raise_syntax_error(
-                    "Unexpected top-level token.", self.current_token
+                    "Unexpected top-level token. Expected a function, struct, or variable declaration.",
+                    self.current_token
                 )
         return AST.ProgramNode(declarations)

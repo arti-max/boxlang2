@@ -136,3 +136,24 @@ class DereferenceNode(ASTNode):
     """
     def __init__(self, pointer_node):
         self.pointer_node = pointer_node # Узел-выражение, который должен вычисляться в адрес
+        
+class ForNode(ASTNode):
+    def __init__(self, init_node, condition_node, increment_node, body):
+        self.init_node = init_node
+        self.condition_node = condition_node
+        self.increment_node = increment_node
+        self.body = body
+
+class PropertyAccessNode(ASTNode):
+    def __init__(self, variable_name, property_name):
+        self.variable_name = variable_name
+        self.property_name = property_name
+        
+class StructDeclarationNode(ASTNode):
+    """
+    Узел для объявления структуры, например:
+    struct Vec3 (num32 x, num32 y)
+    """
+    def __init__(self, name, fields):
+        self.name = name      # Имя структуры (строка, "Vec3")
+        self.fields = fields  # Список полей [(тип, имя), ...]

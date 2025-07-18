@@ -11,6 +11,9 @@ class Compiler:
         # Массивы:    { "имя": ("array", местоположение, размер_элемента) }
         self.global_variables = {}
         self.scope_variables = {} 
+        # <<< НОВОЕ: Хранилище для метаданных о структурах
+        # Формат: { 'Player': {'size': 10, 'fields': {'x': {'offset': 0, 'type': 'num32'}, ...} } }
+        self.struct_definitions = {}
         self.current_function_name = None
         self.next_local_offset = 0
         
@@ -32,6 +35,63 @@ class Compiler:
                 'return_type': None
             },
         })
+        
+    def _find_declarations_recursive(self, nodes):
+        """Рекурсивно находит все узлы объявления переменных и массивов."""
+        declarations = []
+        for node in nodes:
+            # Если узел сам является объявлением, добавляем его
+            if isinstance(node, (AST.VariableDeclarationNode, AST.ArrayDeclarationNode)):
+                declarations.append(node)
+            
+            # Рекурсивно ищем во вложенных блоках
+            if hasattr(node, 'if_body'):  # Для IfNode
+                declarations.extend(self._find_declarations_recursive(node.if_body))
+            if hasattr(node, 'else_body') and node.else_body:
+                declarations.extend(self._find_declarations_recursive(node.else_body))
+            if hasattr(node, 'body'):  # Для ForNode и WhileNode
+                declarations.extend(self._find_declarations_recursive(node.body))
+            if hasattr(node, 'init_node'):  # Для инициализатора ForNode
+                if isinstance(node.init_node, AST.VariableDeclarationNode):
+                    declarations.append(node.init_node)
+            if hasattr(node, 'cases'): # для MatchNode
+                 for case in node.cases:
+                    declarations.extend(self._find_declarations_recursive(case.body))
+        return declarations
+    
+    def _get_field_address(self, var_node, field_name):
+        """
+        Вычисляет адрес поля структуры и помещает его в %ebx.
+        var_node - это VariableReferenceNode.
+        field_name - имя поля (строка).
+        """
+        var_name = var_node.name
+        var_info = self.get_var_info(var_name)
+        if not var_info:
+            raise NameError(f"Variable '{var_name}' not defined.")
+
+        var_type, location, _ = var_info
+        if var_type not in self.struct_definitions:
+            raise TypeError(f"Variable '{var_name}' is not a struct and has no fields.")
+            
+        struct_def = self.struct_definitions[var_type]
+        if field_name not in struct_def['fields']:
+            raise NameError(f"Struct '{var_type}' has no field named '{field_name}'.")
+            
+        field_info = struct_def['fields'][field_name]
+        field_offset = field_info['offset']
+
+        # Шаг 1: Получаем базовый адрес переменной-структуры в %ebx
+        if isinstance(location, int): # Локальная переменная
+            self.kasm_code += f"    mov %ebx %ebp\n"
+            if location > 0: self.kasm_code += f"    add %ebx {location}\n"
+            else: self.kasm_code += f"    sub %ebx {-location}\n"
+        else: # Глобальная переменная
+            self.kasm_code += f"    mov %ebx {location}\n"
+            
+        # Шаг 2: Добавляем смещение поля к базовому адресу
+        if field_offset > 0:
+            self.kasm_code += f"    add %ebx {field_offset} ; offset for field '{field_name}'\n"
 
     def get_element_size(self, type_name):
         # Добавьте сюда тип указателя
@@ -43,6 +103,7 @@ class Compiler:
             'params': params,  # [(type, name), ...]
             'return_type': return_type
         }
+        
 
     def check_function_call(self, name, args):
         """Проверяет соответствие аргументов сигнатуре функции"""
@@ -241,63 +302,89 @@ class Compiler:
     def visit_FunctionDeclarationNode(self, node):
         self.current_function_name = node.name
         self.scope_variables.clear()
-        
-        # Регистрируем функцию для проверки типов
+        self.array_sizes.clear() # Очищаем размеры массивов для новой функции
+
+        # Регистрируем функцию для будущих проверок типов
         self.register_function_signature(node.name, node.params)
         
-        # Обработка параметров функции (положительные смещения от ebp)
+        # --- ШАГ 1: Обработка параметров функции ---
+        # Параметры имеют положительное смещение от указателя базы стека (%ebp)
         param_offset = 8
         for param_type, param_name in node.params:
             self.scope_variables[param_name] = (param_type, param_offset)
             param_offset += 4
 
-        # Предварительный проход для вычисления размера стека под локальные переменные
-        self.next_local_offset = 0
+        # --- ШАГ 2: Рекурсивный сбор всех локальных переменных ---
+        # Используем существующий, но неиспользуемый метод для поиска во вложенных блоках
+        all_local_declarations = self._find_declarations_recursive(node.body)
+
+        # --- ШАГ 3: Расчет общего размера стека для всех локальных переменных ---
         local_vars_size = 0
-        for stmt in node.body:
-            if isinstance(stmt, AST.VariableDeclarationNode):
-                size = self.get_element_size(stmt.var_type)
+        for decl_node in all_local_declarations:
+            if isinstance(decl_node, AST.VariableDeclarationNode):
+                if decl_node.var_type in self.struct_definitions:
+                    size = self.struct_definitions[decl_node.var_type]['size']
+                else:
+                    size = self.get_element_size(decl_node.var_type)
                 local_vars_size += size
-                self.next_local_offset -= size
-                self.scope_variables[stmt.name] = (stmt.var_type, self.next_local_offset)
-            elif isinstance(stmt, AST.ArrayDeclarationNode):
-                if not isinstance(stmt.size_node, AST.NumberLiteralNode):
-                    raise TypeError("Array size must be a constant number for local arrays")
-                element_size = self.get_element_size(stmt.var_type)
-                array_size_bytes = stmt.size_node.value * element_size
+            elif isinstance(decl_node, AST.ArrayDeclarationNode):
+                if not isinstance(decl_node.size_node, AST.NumberLiteralNode):
+                    # На данный момент локальные массивы должны иметь постоянный размер
+                    raise TypeError("Local array size must be a constant number")
+                element_size = self.get_element_size(decl_node.var_type)
+                array_size_bytes = decl_node.size_node.value * element_size
                 local_vars_size += array_size_bytes
-                self.next_local_offset -= array_size_bytes
-                self.scope_variables[stmt.name] = ('array', self.next_local_offset, element_size)
-                # Сохраняем размер массива для проверки границ
-                self.array_sizes[stmt.name] = stmt.size_node.value
         
+        # --- ШАГ 4: Генерация пролога функции ---
         self.kasm_code += f"\n{self.current_function_name}:\n"
+        self.kasm_code += "    psh %ebp\n"
+        self.kasm_code += "    mov %ebp %esp\n"
         
-        if self.current_function_name != '_start':
-            self.kasm_code += "    psh %ebp\n"
-            self.kasm_code += "    mov %ebp %esp\n"
-            
+        # Этот "костыль" необходим из-за Big-Endian порядка в стековых операциях эмулятора
         self.kasm_code += "    add %ebp 1\n"
         
+        # Выделяем на стеке место сразу под ВСЕ локальные переменные
         if local_vars_size > 0:
-            self.kasm_code += f"    sub %esp {local_vars_size} ; Allocate space for local variables and arrays\n"
+            self.kasm_code += f"    sub %esp {local_vars_size} ; Allocate space for ALL local variables\n"
 
+        # --- ШАГ 5: Регистрация всех локальных переменных в таблице символов ---
+        # Теперь, когда память выделена, мы можем присвоить им смещения
+        self.next_local_offset = 0
+        for decl_node in all_local_declarations:
+            if isinstance(decl_node, AST.VariableDeclarationNode):
+                size = self.get_element_size(decl_node.var_type)
+                self.next_local_offset -= size
+                self.scope_variables[decl_node.name] = (decl_node.var_type, self.next_local_offset)
+            
+            elif isinstance(decl_node, AST.ArrayDeclarationNode):
+                element_size = self.get_element_size(decl_node.var_type)
+                array_size_value = decl_node.size_node.value
+                array_size_bytes = array_size_value * element_size
+                
+                self.next_local_offset -= array_size_bytes
+                self.scope_variables[decl_node.name] = ('array', self.next_local_offset, element_size)
+                # Также сохраняем размер массива для `array.length`
+                self.array_sizes[decl_node.name] = array_size_value
+
+        # --- ШАГ 6: Генерация кода для тела функции ---
         has_return = any(isinstance(stmt, AST.ReturnNode) for stmt in node.body)
         
         for statement in node.body:
             self.visit(statement)
 
-        # Генерация эпилога
+        # --- ШАГ 7: Генерация эпилога функции ---
         if self.current_function_name != '_start':
             self.kasm_code += f".L_ret_{self.current_function_name}:\n"
             if not has_return:
                 self.kasm_code += "    mov %eax 0 ; Default return value\n"
             
+            # Восстанавливаем стек и возвращаемся
             self.kasm_code += "    mov %esp %ebp\n"
             self.kasm_code += "    sub %esp 1\n"
             self.kasm_code += "    pop %ebp\n"
             self.kasm_code += "    rts\n"
         else:
+             # Для _start просто завершаем программу
              self.kasm_code += "    hlt ; Program end\n"
         
         self.current_function_name = None
@@ -350,7 +437,30 @@ class Compiler:
         
         self.visit(node.expression)
         self.kasm_code += "    psh %eax ; Save expression result\n"
-        if isinstance(node.variable, AST.VariableReferenceNode):
+        if isinstance(node.variable, AST.PropertyAccessNode):
+            # Это присваивание полю, например, 'p.x : 10'
+            var_name = node.variable.variable_name
+            field_name = node.variable.property_name
+
+            # 1. Вычисляем значение правой части и сохраняем в стеке
+            self.visit(node.expression)
+            self.kasm_code += "    psh %eax ; Save expression result\n"
+
+            # 2. Получаем адрес поля в %ebx
+            self._get_field_address(AST.VariableReferenceNode(var_name), field_name)
+            
+            # 3. Извлекаем значение из стека в %eax
+            self.kasm_code += "    pop %eax ; Restore expression result\n"
+            
+            # 4. Определяем размер и инструкцию для записи
+            var_info = self.get_var_info(var_name)
+            struct_type = var_info[0]
+            field_info = self.struct_definitions[struct_type]['fields'][field_name]
+            op = {4: 'sd', 2: 'sw', 1: 'sb'}.get(field_info['size'], 'sd')
+            
+            # 5. Записываем значение по адресу
+            self.kasm_code += f"    {op} %ebx %eax ; Store value into field '{field_name}'\n"
+        elif isinstance(node.variable, AST.VariableReferenceNode):
             self.kasm_code += "    pop %eax ; Восстанавливаем результат для записи\n"
             var_name = node.variable.name
             var_info = self.get_var_info(var_name)
@@ -397,7 +507,16 @@ class Compiler:
             raise TypeError("Invalid assignment target")
 
     def visit_VariableDeclarationNode(self, node):
+        # Эта функция теперь просто "пропускается" во время генерации кода,
+        # так как вся работа по выделению памяти и регистрации переменных
+        # была сделана на предварительном проходе в visit_FunctionDeclarationNode.
+        # Однако нам все еще нужно обработать возможное присваивание при объявлении.
         if node.initial_value:
+            # Проверяем, что это не структура, т.к. их инициализация при объявлении запрещена
+            if node.var_type in self.struct_definitions:
+                # Эта ошибка должна была быть поймана парсером, но дублируем для надежности
+                raise TypeError(f"Initialization of struct '{node.name}' at declaration is not supported.")
+            
             var_ref = AST.VariableReferenceNode(node.name)
             self.visit(AST.AssignmentNode(var_ref, node.initial_value))
 
@@ -429,30 +548,53 @@ class Compiler:
         self.kasm_code += f"    {op} %ebx %eax\n"
 
     def visit_array_address(self, node):
-        """Вычисляет адрес элемента массива и помещает его в %ebx."""
+        """
+        Вычисляет адрес элемента 'arr[i]' или 'ptr[i]' и помещает его в %ebx.
+        Эта версия полностью автономна и не использует стек.
+        """
         var_info = self.get_var_info(node.name)
-        if not var_info or var_info[0] != 'array':
-            raise NameError(f"Identifier '{node.name}' is not an array.")
+        if not var_info:
+            raise NameError(f"Identifier '{node.name}' is not defined.")
         
-        _, location, element_size = var_info
+        var_type = var_info[0]
+        
+        if var_type != 'array' and not var_type.endswith('*'):
+            raise NameError(f"Identifier '{node.name}' is not an array or a pointer and cannot be indexed.")
 
+        # --- НАЧАЛО НОВОЙ ЛОГИКИ ---
+
+        # 1. Вычисляем индекс и сохраняем его в %eax
         self.visit(node.index_node)
-        self.kasm_code += "    psh %eax ; Save index\n"
+        
+        # 2. Определяем размер элемента
+        if var_type == 'array':
+            element_size = var_info[2]
+        else: # Указатель
+            base_type_name = var_type.replace('*', '')
+            element_size = self.get_element_size(base_type_name)
+
+        # 3. Вычисляем смещение (offset = index * element_size)
+        self.kasm_code += "    psh %ebx       ; Сохраняем %ebx\n"
         self.kasm_code += f"    mov %ebx {element_size}\n"
-        self.kasm_code += "    mul %eax %ebx ; eax = index * size\n"
-        self.kasm_code += "    mov %e8 %eax ; Save final offset to e8\n"
+        self.kasm_code += "    mul %eax %ebx  ; eax = offset\n"
+        self.kasm_code += "    mov %e8 %eax   ; Сохраняем offset в %e8\n"
+        self.kasm_code += "    pop %ebx       ; Восстанавливаем %ebx\n"
 
-        if isinstance(location, int):
-            self.kasm_code += f"    mov %ebx %ebp\n"
-            if location > 0:
-                self.kasm_code += f"    add %ebx {location} ; ebx = base address (param array)\n"
-            else:
-                self.kasm_code += f"    sub %ebx {-location} ; ebx = base address of local array\n"
-        else:
-            self.kasm_code += f"    mov %ebx {location} ; ebx = base address of global array\n"
+        # 4. Получаем базовый адрес
+        if var_type == 'array':
+            _, location, _ = var_info
+            if isinstance(location, int): # Локальный массив
+                self.kasm_code += f"    mov %ebx %ebp\n"
+                self.kasm_code += f"    sub %ebx {-location}\n"
+            else: # Глобальный массив
+                self.kasm_code += f"    mov %ebx {location}\n"
+        else: # Указатель (параметр функции)
+            # Нужно прочитать значение самого указателя (адрес)
+            self.visit(AST.VariableReferenceNode(node.name))
+            self.kasm_code += "    mov %ebx %eax  ; %ebx = базовый адрес (значение указателя)\n"
 
-        self.kasm_code += "    add %ebx %e8 ; ebx = base_address + offset\n"
-        self.kasm_code += "    pop %eax ; Restore index (and clean stack)\n"
+        # 5. Складываем базовый адрес и смещение для получения итогового адреса
+        self.kasm_code += "    add %ebx %e8   ; %ebx = base_address + offset\n"
 
     def get_var_info(self, name):
         if self.current_function_name and name in self.scope_variables:
@@ -672,52 +814,172 @@ class Compiler:
             self.kasm_code += "    mov %eax 0\n"
 
         self.kasm_code += f"    {op} %ebx %eax ; Загружаем значение по адресу из %ebx\n"
+        
+    def visit_ForNode(self, node):
+        # 1. Выполняем инициализацию один раз перед циклом
+        if node.init_node:
+            self.visit(node.init_node)
+
+        start_label = f".L_for_start_{self.label_counter}"
+        end_label = f".L_for_end_{self.label_counter}"
+        self.label_counter += 1
+
+        # 2. Метка начала цикла
+        self.kasm_code += f"{start_label}:\n"
+
+        # 3. Проверяем условие
+        if node.condition_node:
+            self.visit(node.condition_node)
+            self.kasm_code += "        cmp %eax 0\n"
+            self.kasm_code += f"        je {end_label}\n"
+
+        # 4. Выполняем тело цикла
+        for statement in node.body:
+            self.visit(statement)
+
+        # 5. Выполняем инкремент в конце каждой итерации
+        if node.increment_node:
+            self.visit(node.increment_node)
+
+        # 6. Возвращаемся в начало для следующей проверки
+        self.kasm_code += f"        jmp {start_label}\n"
+
+        # 7. Метка конца цикла
+        self.kasm_code += f"{end_label}:\n"
+        
+    def visit_PropertyAccessNode(self, node):
+        var_name = node.variable_name
+        prop_name = node.property_name
+
+        # Проверяем, не является ли это доступом к полю структуры
+        var_info = self.get_var_info(var_name)
+        if var_info and var_info[0] in self.struct_definitions:
+            # Это доступ к полю структуры, например, 'player.x'
+            struct_type = var_info[0]
+            struct_def = self.struct_definitions[struct_type]
+            if prop_name not in struct_def['fields']:
+                raise NameError(f"Struct '{struct_type}' has no field named '{prop_name}'.")
+            
+            field_info = struct_def['fields'][prop_name]
+            field_size = field_info['size']
+
+            # 1. Вычисляем адрес поля и кладем его в %ebx
+            self._get_field_address(AST.VariableReferenceNode(var_name), prop_name)
+            
+            # 2. Загружаем значение по этому адресу в %eax
+            op = {4: 'ld', 2: 'lw', 1: 'lb'}.get(field_size, 'ld')
+            if field_size != 4: self.kasm_code += "    mov %eax 0\n"
+            self.kasm_code += f"    {op} %ebx %eax ; Load value of field '{prop_name}'\n"
+            
+            return # Завершаем выполнение
+        
+        # Если это не структура, то это, возможно, array.length
+        if prop_name == "length":
+            if var_name not in self.array_sizes:
+                raise NameError(f"Cannot get .length of '{var_name}', as it is not a known array or struct.")
+            
+            array_length = self.array_sizes[var_name]
+            self.kasm_code += f"    mov %eax {array_length} ; .length of {var_name}\n"
+        else:
+            raise NameError(f"Unknown property '{prop_name}' for variable '{var_name}'.")
+        
+    def visit_StructDeclarationNode(self, node):
+        """Собирает метаданные о структуре: её размер и смещения полей."""
+        if node.name in self.struct_definitions:
+            raise NameError(f"Struct '{node.name}' is already defined.")
+
+        current_offset = 0
+        struct_fields = {}
+        
+        for field_type, field_name in node.fields:
+            if field_name in struct_fields:
+                raise NameError(f"Duplicate field name '{field_name}' in struct '{node.name}'.")
+            
+            field_size = self.get_element_size(field_type)
+            
+            struct_fields[field_name] = {
+                'type': field_type,
+                'offset': current_offset,
+                'size': field_size
+            }
+            current_offset += field_size
+            
+        self.struct_definitions[node.name] = {
+            'size': current_offset,
+            'fields': struct_fields
+        }
 
     def compile(self, ast_root, std_lib_code=""):
-        init_code = ""
         declarations = ast_root.statements
+        init_code = ""
+
+        # --- ШАГ 1: ПРЕДВАРИТЕЛЬНЫЙ ПРОХОД ПО СТРУКТУРАМ ---
+        # Сначала мы должны найти и обработать все объявления 'struct'.
+        # Это необходимо, чтобы компилятор знал о существовании пользовательских типов
+        # до того, как начнет обрабатывать переменные или функции, которые их используют.
+        struct_declarations = [n for n in declarations if isinstance(n, AST.StructDeclarationNode)]
+        for struct_node in struct_declarations:
+            self.visit(struct_node)
+
+        # --- ШАГ 2: РАЗДЕЛЕНИЕ ОСТАЛЬНЫХ ДЕКЛАРАЦИЙ ---
+        # Теперь, когда структуры определены, мы можем разделить оставшиеся
+        # объявления верхнего уровня на функции и глобальные переменные.
         functions = [n for n in declarations if isinstance(n, AST.FunctionDeclarationNode)]
-        
-        # Обработка глобальных переменных и массивов
-        for node in declarations:
-            if isinstance(node, (AST.VariableDeclarationNode, AST.ArrayDeclarationNode)):
-                var_label = f"__var_{node.name}"
+        global_vars = [n for n in declarations if isinstance(n, (AST.VariableDeclarationNode, AST.ArrayDeclarationNode))]
+
+        # --- ШАГ 3: ОБРАБОТКА ГЛОБАЛЬНЫХ ПЕРЕМЕННЫХ И МАССИВОВ ---
+        # Проходим по всем глобальным переменным и выделяем для них место в секции данных.
+        for node in global_vars:
+            var_label = f"__var_{node.name}"
+            
+            # Определяем размер переменной. Он может быть базовым (num32) или размером структуры.
+            if node.var_type in self.struct_definitions:
+                elem_size = self.struct_definitions[node.var_type]['size']
+            else:
                 elem_size = self.get_element_size(node.var_type)
-                
-                if isinstance(node, AST.ArrayDeclarationNode):
-                    if not isinstance(node.size_node, AST.NumberLiteralNode):
-                        raise TypeError("Global array size must be a constant number")
-                    total_size = node.size_node.value * elem_size
-                    self.global_variables[node.name] = ('array', var_label, elem_size)
-                    self.data_section += f"{var_label}: reserve {total_size} bytes\n"
-                    # Сохраняем размер глобального массива
-                    self.array_sizes[node.name] = node.size_node.value
-                
-                else:
-                    self.global_variables[node.name] = (node.var_type, var_label)
-                    self.data_section += f"{var_label}: reserve {elem_size} bytes\n"
-                    if node.initial_value:
-                        temp_compiler = Compiler()
-                        temp_compiler.global_variables = self.global_variables
-                        assignment_node = AST.AssignmentNode(AST.VariableReferenceNode(node.name), node.initial_value)
-                        temp_compiler.visit(assignment_node)
-                        init_code += temp_compiler.kasm_code
+            
+            if isinstance(node, AST.ArrayDeclarationNode):
+                if not isinstance(node.size_node, AST.NumberLiteralNode):
+                    raise TypeError("Global array size must be a constant number")
+                total_size = node.size_node.value * elem_size
+                self.global_variables[node.name] = ('array', var_label, elem_size)
+                self.data_section += f"{var_label}: reserve {total_size} bytes\n"
+                self.array_sizes[node.name] = node.size_node.value
+            
+            else: # Обычная переменная (включая экземпляры структур)
+                self.global_variables[node.name] = (node.var_type, var_label)
+                self.data_section += f"{var_label}: reserve {elem_size} bytes\n"
+                if node.initial_value:
+                    # Если есть инициализатор, генерируем код для него.
+                    # Этот код будет вставлен в начало функции _start.
+                    temp_compiler = Compiler()
+                    temp_compiler.global_variables = self.global_variables
+                    assignment_node = AST.AssignmentNode(AST.VariableReferenceNode(node.name), node.initial_value)
+                    temp_compiler.visit(assignment_node)
+                    init_code += temp_compiler.kasm_code
         
-        # Внедрение кода инициализации в функцию _start
+        # --- ШАГ 4: ВНЕДРЕНИЕ КОДА ИНИЦИАЛИЗАЦИИ В _start ---
+        # Если были глобальные переменные с инициализаторами,
+        # вставляем сгенерированный код в начало функции _start.
         has_start = False
         for func in functions:
             if func.name == '_start':
                 has_start = True
                 if init_code:
+                    # Оборачиваем код в KasmNode и вставляем в самое начало тела функции
                     func.body.insert(0, AST.KasmNode(init_code))
                 break
         if not has_start and init_code:
             raise SyntaxError("Global variable initializers require a '_start' function.")
 
-        # Генерация кода для всех функций
+        # --- ШАГ 5: КОМПИЛЯЦИЯ ВСЕХ ФУНКЦИЙ ---
+        # Теперь, когда вся глобальная информация собрана, компилируем каждую функцию.
         for func_node in functions:
             self.visit(func_node)
         
+        # --- ШАГ 6: СБОРКА ИТОГОВОГО ФАЙЛА ---
+        # Собираем все части вместе: переход на _start, код библиотек,
+        # скомпилированный код функций и секция данных.
         final_code = "jmp _start\n\n"
         final_code += std_lib_code + "\n"
         final_code += self.kasm_code

@@ -19,6 +19,8 @@ class TokenType(Enum):
     CASE = auto()           # case
     DEFAULT = auto()        # default
     WHILE = auto()          # while
+    FOR = auto()            # for
+    STRUCT = auto()         # struct
     # datatypes
     CHAR = auto()   
     NUM16 = auto()
@@ -54,6 +56,7 @@ class TokenType(Enum):
     DOT = auto()            # .
     ARROW = auto()          # ->
     EQ = auto()             # =
+    SEMICOLON = auto()        # ;
     # other
     EOF = auto()            # End Of File
     

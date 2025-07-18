@@ -1,0 +1,32 @@
+@incl <stdprint>
+@incl <stdlib>
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    num32 a[5]
+    a[0] : 10
+    a[1] : 20
+    a[2] : 30
+    a[3] : 40
+    a[4] : 50
+
+    num32 sum : 0
+
+    open print["Array elements:$"]
+
+    for [num32 i : 0; i < a.length; i : i + 1] (
+        num32 current_element : a[i]
+        sum : sum + current_element
+        
+        open print_num[current_element]
+        open print["$"]
+    )
+
+    open print["Sum of elements: "]
+    open print_num[sum]
+    open print["$"]
+
+    open trapf[]
+)

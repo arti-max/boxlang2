@@ -1,0 +1,41 @@
+@incl <stdprint>
+
+struct Player (
+    num32 x
+    num32 y
+    num16 health
+    char id
+)
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    Player p1
+
+    p1.x : 150
+    p1.y : 200
+    p1.health : 95
+    p1.id : 'A'
+
+    open print["Player 1 data:$"]
+    open print["X: "]
+    open print_num[p1.x]
+    open print["$Y: "]
+    open print_num[p1.y]
+    open print["$Health: "]
+    open print_num[p1.health]
+    
+    ## Для вывода char нужно его передать как num32
+    open print["$ID Char (as num): "]
+    open print_num[p1.id]
+    open print["$"]
+    
+    ## Изменим значение
+    p1.health : p1.health + 5
+    open print["Health after potion: "]
+    open print_num[p1.health]
+    open print["$"]
+    
+    kasm["trap"]
+)
