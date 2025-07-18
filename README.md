@@ -78,7 +78,7 @@ num32 local_array[10]
 local_array[0] : 123
 
 ## Чтение из второго элемента
-num32 value : local_array[^1]
+num32 value : local_array[1]
 ```
 
 
@@ -87,7 +87,7 @@ num32 value : local_array[^1]
 У каждого объявленного массива есть свойство `.length`, которое позволяет получить его размер на этапе компиляции. Это очень удобно для написания циклов, которые не выходят за границы массива.
 
 ```rust
-num32 scores[^5]
+num32 scores[5]
 num32 i : 0
 
 while [i < scores.length] ( ## scores.length здесь равно 5
