@@ -21,10 +21,28 @@ box trapf[] (
 ##    ret sum
 ##)
 
-box sum_n32[num32* array, num32 length] (
+box sum_n32[num32* arr, num32 length] (
     num32 sum : 0
     for [num32 i : 0; i < length; i : i + 1] (
-        sum : sum + array[i]
+        sum : sum + arr[i]
+    )
+
+    ret sum
+)
+
+box sum_n16[num16* arr, num32 length] (
+    num32 sum:0
+    for [num32 i:0; i<length; i:i+1] (
+        sum:sum + arr[i]
+    )
+
+    ret sum
+)
+
+box sum_char[char* arr, num32 length] (
+    num32 sum:0
+    for [num32 i:0; i<length; i:i+1] (
+        sum:sum + arr[i]
     )
 
     ret sum
