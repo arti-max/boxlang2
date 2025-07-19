@@ -138,23 +138,32 @@ class Compiler:
             return 'unknown'
         elif isinstance(expr_node, AST.ArrayAccessNode):
             var_info = self.get_var_info(expr_node.name)
-            if var_info and var_info[0] == 'array':
-                # Возвращаем тип элемента массива
-                array_type = self.get_array_element_type(expr_node.name)
-                return array_type
+            if var_info:
+                if var_info[0] == 'array':
+                    return self.get_array_element_type(expr_node.name)
+                elif var_info[0].endswith('*'): # Доступ по индексу к указателю
+                    return var_info[0].replace('*', '')
             return 'unknown'
         elif isinstance(expr_node, AST.AddressOfNode):
-            # Тип выражения &var - это указатель на тип var
             base_type = self.infer_expression_type(expr_node.node_to_address)
             if base_type != 'unknown':
                 return f"{base_type}*"
             return 'unknown'
         elif isinstance(expr_node, AST.BinaryOperationNode):
-            return 'num32'  # Арифметические операции возвращают num32
+            return 'num32'
         elif isinstance(expr_node, AST.FunctionCallNode):
             if expr_node.name in self.function_signatures:
-                return self.function_signatures[expr_node.name]['return_type'] or 'num32'
-            return 'num32'  # По умолчанию для пользовательских функций
+                return self.function_signatures[expr_node.name].get('return_type') or 'num32'
+            return 'num32'
+        
+        # <<< НОВОЕ: Добавляем правило для PropertyAccessNode >>>
+        elif isinstance(expr_node, AST.PropertyAccessNode):
+            # На данный момент у нас есть только одно свойство - .length
+            if expr_node.property_name == 'length':
+                # .length всегда возвращает число.
+                return 'num32'
+
+        # Если ничего не подошло, мы не знаем тип
         return 'unknown'
 
     def types_compatible(self, actual_type, expected_type):
