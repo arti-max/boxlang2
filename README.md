@@ -324,7 +324,9 @@ box play_sound[num32 frequency] (
     * `open print_num[number]`: Выводит на экран число типа `num32`.
 * **Библиотека `stdlib.box` (Более новая stdio):**
     * `open exit[code]`: Завершает программу с указанным кодом.
-    * `open sum_n32[&array_ptr]`: Суммирует элементы массива `num32`.
+    * `open sum_n32[&array_ptr, array.length]`: Суммирует элементы массива `num32`.
+    * `open sum_n16[&array_ptr, array.length]`: Суммирует элементы массива `num16`.
+    * `open sum_char[&array_ptr, array.length]`: Суммирует элементы массива `char`.
     * `open trapf[]`: Вызывает отладочную ловушку для остановки эмулятора и проверки состояния.
 * **Библиотека `stdio.asm` (Поддержка прекращена):**
     * `open VIDEO_FLUSH[]`: Принудительно обновляет экран, чтобы показать изменения в видеопамяти.
