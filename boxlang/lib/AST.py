@@ -11,8 +11,9 @@ class FunctionCallNode(ASTNode):
         self.args = args
 
 class StringLiteralNode(ASTNode):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, segments):
+        # segments: список [(True, "abc"), (False, 0x0A), ...]
+        self.segments = segments
 
 class NumberLiteralNode(ASTNode):
     def __init__(self, value):
@@ -26,10 +27,12 @@ class VariableDeclarationNode(ASTNode):
 
 # <<< НОВОЕ: Узел для объявления массива
 class ArrayDeclarationNode(ASTNode):
-    def __init__(self, var_type, name, size_node):
+    # ### <-- ИЗМЕНЕНИЕ: Добавили initial_value, как в VariableDeclarationNode
+    def __init__(self, var_type, name, size_node, initial_value=None):
         self.var_type = var_type
         self.name = name
-        self.size_node = size_node # Узел с размером массива (пока NumberLiteralNode)
+        self.size_node = size_node
+        self.initial_value = initial_value
 
 # <<< НОВОЕ: Узел для доступа к элементу массива
 class ArrayAccessNode(ASTNode):
@@ -57,10 +60,11 @@ class CharLiteralNode(ASTNode):
         self.value = value
         
 class FunctionDeclarationNode(ASTNode):
-    def __init__(self, name, params, body):
+    def __init__(self, name, params, body, is_variadic=False):
         self.name = name
         self.params = params
         self.body = body
+        self.is_variadic = is_variadic
 
 class ReturnNode(ASTNode):
     def __init__(self, value_node):
@@ -157,3 +161,9 @@ class StructDeclarationNode(ASTNode):
     def __init__(self, name, fields):
         self.name = name      # Имя структуры (строка, "Vec3")
         self.fields = fields  # Список полей [(тип, имя), ...]
+        
+class UnaryOpNode(ASTNode):
+    """Узел для унарных операций (например, -5)"""
+    def __init__(self, op, node):
+        self.token = self.op = op
+        self.node = node

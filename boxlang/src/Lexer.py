@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from lib.Token import Token
 from lib.TokenType import TokenType
 
@@ -59,14 +60,46 @@ class Lexer:
         return Token(TokenType.NUMBER, int(result), self.line, start_col)
 
     def string(self):
-        result = ''
+        segments = []
+        curr_str = ''
         start_col = self.column
-        self.advance() # "
+        self.advance()  # Пропускаем открывающую кавычку "
+
         while self.current_char is not None and self.current_char != '"':
-            result += self.current_char
-            self.advance()
-        self.advance() # "
-        return Token(TokenType.STRING, result, self.line, start_col)
+            if self.current_char == '\\':
+                self.advance()
+                if self.current_char == 'x':
+                    # Заканчиваем прошлый кусок строки
+                    if curr_str:
+                        segments.append((True, curr_str))
+                        curr_str = ''
+                    # Считываем две hex-цифры
+                    self.advance()
+                    h1 = self.current_char
+                    self.advance()
+                    h2 = self.current_char
+                    self.advance()
+                    byte = int(h1 + h2, 16)
+                    segments.append((False, byte))
+                else:
+                    # Стандартные escape (\n, \t, \r, \\ и т.д.)
+                    esc = self.current_char
+                    self.advance()
+                    mapping = {'n': 10, 'r': 13, 't': 9, '0': 0, '\\': ord('\\'), '"': ord('"')}
+                    if esc in mapping:
+                        if curr_str:
+                            segments.append((True, curr_str))
+                            curr_str = ''
+                        segments.append((False, mapping[esc]))
+                    else:
+                        curr_str += '\\' + esc
+            else:
+                curr_str += self.current_char
+                self.advance()
+        if curr_str:
+            segments.append((True, curr_str))
+        self.advance()  # Закрывающая "
+        return self.make_token(TokenType.STRING, segments)
 
     def identifier(self):
         result = ''
@@ -122,78 +155,81 @@ class Lexer:
 
     def _tokenize(self):
         tokens = []
-        
         while self.current_char is not None:
+            
+            # --- Пропуск пробелов, комментариев и т.д. ---
             if self.current_char.isspace():
                 self.skip_whitespace()
                 continue
-            
-            if self.current_char == '#':
+            if self.current_char == '#' and self.text[self.pos + 1] == '#':
                 self.skip_comment()
                 continue
-
+            if self.current_char == '.' and self.peek_char() == '.' and self.text[self.pos + 2] == '.':
+                tokens.append(self.make_token(TokenType.ELLIPSIS, '...'))
+                self.advance(3)
+                continue
             if self.current_char.isalpha() or self.current_char == '_':
                 tokens.append(self.identifier())
                 continue
-            
             if self.current_char == '0' and self.peek_char() in 'xXbB':
                 tokens.append(self.hex_or_binary_number())
                 continue
-            
             if self.current_char.isdigit():
                 tokens.append(self.number())
                 continue
-
             if self.current_char == '"':
                 tokens.append(self.string())
                 continue
-            
             if self.current_char == "'":
                 tokens.append(self.char_literal())
                 continue
 
-            # === ИСПРАВЛЕННАЯ ЛОГИКА ОБРАБОТКИ ОПЕРАТОРОВ ===
-            
+            # --- Логика для операторов ---
             char = self.current_char
             peek = self.peek_char()
 
+            # Многосимвольные операторы
+            if char == '/' and peek == '/':
+                tokens.append(self.make_token(TokenType.FLOOR_DIV, '//'))
+                self.advance(2); continue
+            if char == '&' and peek == '&':
+                tokens.append(self.make_token(TokenType.LOGICAL_AND, '&&'))
+                self.advance(2); continue
+            if char == '|' and peek == '|':
+                tokens.append(self.make_token(TokenType.LOGICAL_OR, '||'))
+                self.advance(2); continue
             if char == '=' and peek == '=':
                 tokens.append(self.make_token(TokenType.EQ_EQ, '=='))
-                self.advance(2)
-                continue
-            
+                self.advance(2); continue
             if char == '!' and peek == '=':
                 tokens.append(self.make_token(TokenType.NOT_EQ, '!='))
-                self.advance(2)
-                continue
+                self.advance(2); continue
+            if char == '<' and peek == '<':
+                tokens.append(self.make_token(TokenType.LSHIFT, '<<'))
+                self.advance(2); continue
+            if char == '>' and peek == '>':
+                tokens.append(self.make_token(TokenType.RSHIFT, '>>'))
+                self.advance(2); continue
+            if char == '<' and peek == '=':
+                tokens.append(self.make_token(TokenType.LTE, '<='))
+                self.advance(2); continue
+            if char == '>' and peek == '=':
+                tokens.append(self.make_token(TokenType.GTE, '>='))
+                self.advance(2); continue
             
-            if char == '<':
-                if peek == '=':
-                    tokens.append(self.make_token(TokenType.LTE, '<='))
-                    self.advance(2)
-                else:
-                    tokens.append(self.make_token(TokenType.LT, '<'))
-                    self.advance()
-                continue
-            
-            if char == '>':
-                if peek == '=':
-                    tokens.append(self.make_token(TokenType.GTE, '>='))
-                    self.advance(2)
-                else:
-                    tokens.append(self.make_token(TokenType.GT, '>'))
-                    self.advance()
-                continue
-
-            # Карта для остальных однозначных токенов
+            # Односимвольные операторы
             single_char_map = {
                 '+': TokenType.PLUS, '-': TokenType.MINUS, '*': TokenType.MULTIPLY, '/': TokenType.DIVIDE,
                 ':': TokenType.COLON, ';': TokenType.SEMICOLON,
                 '[': TokenType.BRACKET_OPEN, ']': TokenType.BRACKET_CLOSE,
                 '(': TokenType.PAREN_OPEN, ')': TokenType.PAREN_CLOSE,
                 '{': TokenType.CURLY_OPEN, '}': TokenType.CURLY_CLOSE,
-                ',': TokenType.COMMA, '@': TokenType.AT, '&': TokenType.AMPERSAND,
-                '.': TokenType.DOT
+                ',': TokenType.COMMA, '@': TokenType.AT,
+                '.': TokenType.DOT, '%': TokenType.MODULO,
+                '<': TokenType.LT, '>': TokenType.GT,
+                # ### ИЗМЕНЕНО: '&' теперь всегда токенизируется как AMPERSAND ###
+                '&': TokenType.AMPERSAND, 
+                '|': TokenType.BIT_OR, '^': TokenType.BIT_XOR
             }
 
             if char in single_char_map:
@@ -201,14 +237,11 @@ class Lexer:
                 self.advance()
                 continue
             
-            # ==============================================================
-            
-            # Если мы дошли сюда, символ действительно неизвестен
             raise Exception(f"Unknown character: '{self.current_char}' at {self.line}:{self.column}")
 
         tokens.append(self.make_token(TokenType.EOF, None))
         return tokens
-
+    
     def get_next_token(self):
         """Возвращает текущий токен и переходит к следующему."""
         token = self.tokens[self.token_index]
@@ -216,12 +249,35 @@ class Lexer:
             self.token_index += 1
         return token
     
-    def peek_char(self):
-        """'Подсматривает' следующий символ, не сдвигая указатель."""
-        peek_pos = self.pos + 1
+    def peek_char(self, offset=1):
+        """'Подсматривает' символ со смещением, не сдвигая указатель."""
+        peek_pos = self.pos + offset
         if peek_pos > len(self.text) - 1:
             return None
         return self.text[peek_pos]
+    
+    def handle_escape_sequence(self):
+        """Обрабатывает символ после '\' и возвращает соответствующий символ."""
+        self.advance() # Пропускаем '\'
+        char = self.current_char
+        self.advance() # Пропускаем символ после '\'
+
+        if char == 'n': return '\n'
+        if char == 't': return '\t'
+        if char == 'r': return '\r'
+        if char == '"': return '"'
+        if char == "'": return "'"
+        if char == '\\': return '\\'
+        if char == 'x': # Обработка HEX-кода \xHH
+            hex_code = self.current_char + self.peek_char(0)
+            if all(c in '0123456789abcdefABCDEF' for c in hex_code):
+                self.advance(2) # Пропускаем два HEX-символа
+                return chr(int(hex_code, 16))
+            else:
+                raise Exception(f"Invalid hex escape sequence: \\x{hex_code}")
+        
+        # Если последовательность неизвестна, просто возвращаем ее как есть
+        return '\\' + char
     
     def peek(self):
         """'Подсматривает' следующий токен, не сдвигая указатель."""

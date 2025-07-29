@@ -1,4 +1,4 @@
-
+@incl <stdscreen>
 
 
 box exit[num32 code] (
@@ -8,6 +8,18 @@ box exit[num32 code] (
 
 box trapf[] (
     kasm["trap"]
+)
+
+box rand[] (
+    num32 result : 0
+    kasm["int $21"]
+    kasmf["sd {} %edx", &result]
+    ret result
+)
+
+box randrange[num32 max] (
+    num32 random_val : open rand[]
+    ret random_val % max
 )
 
 ## box sum_n32[num32* array, num32 length] (
@@ -46,4 +58,168 @@ box sum_char[char* arr, num32 length] (
     )
 
     ret sum
+)
+
+box printf[char* str, ...] (
+    ## Data Formats: %i - n16, n32 ; %s - string pointer, %c - character
+    ## All data in stack is num32
+    ## LOGIC:
+    ## 1 -> Parse *str and get all formats. Save pointers to this
+    ## 2 -> Append data from stack to string
+
+    char* char_ptr : str
+    num32* arg_ptr : &str + 4
+
+
+    while [@char_ptr != 0] (
+        if [@char_ptr == '%'] (
+            char_ptr : char_ptr + 1
+            match[@char_ptr] (
+                case ['i'] (
+                    num32 value_to_print : @arg_ptr
+                    open print_num[value_to_print]
+                    arg_ptr : arg_ptr + 4
+                )
+                case ['s'] (
+                    char* string_to_print : @arg_ptr
+                    open print[string_to_print]
+                    arg_ptr : arg_ptr + 4
+                )
+                case ['c'] (
+                    char character_to_print : @arg_ptr
+                    open print_char[character_to_print]
+                    arg_ptr : arg_ptr + 4
+                )
+                default (
+                    open print_char['%']
+                    open print_char[@char_ptr]
+                )
+            )
+        ) else (
+            open print_char[@char_ptr]
+        )
+        char_ptr : char_ptr + 1
+    )
+)
+
+box sleep[num32 ms] (
+    kasmf["mov %edx {}", ms]
+    kasm["int $22"]
+)
+
+box getkey[] (
+    ## 0x480005 - start buffer
+
+    char* buffer : 0x480005
+    char scancode : 0
+    char find : 0
+
+    while [find == 0] (
+        open sleep[10]
+        for [num16 i:0;i<6;i:i+1] (
+            buffer : 0x480005 + i
+            if [@buffer != 0xE1] (
+                if [@buffer != 0xE5] (
+                    if [@buffer != 0] (
+                        scancode : @buffer
+                        find : 1
+                    )
+                )
+            )
+        )
+    )
+    ret scancode
+)
+
+box is_shift_pressed[] (
+
+    char* ptr : 0x480005
+    for [num16 i:0;i<6;i:i+1] (
+        ptr : 0x480005 + i
+        match [@ptr] (
+            case [0xE1] (
+                ret 1
+            )
+            case [0xE5] (
+                ret 1
+            )
+        )
+    )
+    ret 0
+)
+
+## 1 - True
+## 0 - False
+box key_in_buffer[char key] (
+    char* ptr : 0x480005
+    char result : 0
+    for [num16 i:0;i<6;i:i+1] (
+        ptr : 0x480005 + i
+        if [@ptr == key] (
+            result : 1
+        )
+    )
+    ret result
+)
+
+box char_to_scancode[char c] (
+    char layout_chars[57] : "abcdefghijklmnopqrstuvwxyz1234567890\x0A\x1B\x7F\x09 -=[]\\`';'`,./"
+    char shifted_chars[57] : "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()\x0A\x1B\x7F\x09 _+{}|~:\\\"~<>?"
+    char extra[26] : "\x13\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\x14\x17\x12\x07\xC3\xC2\xFE\xB4\xC1\x10\x11\x1F\x1E"
+    char mode : 0
+    char code : 0
+    for [num32 i:0; i<layout_chars.length; i:i+1] (
+        if [c == layout_chars[i]] (
+            mode : 0
+            code : i
+        )
+    )
+    for [num32 i:0; i<extra.length; i:i+1] (
+        if [c == extra[i]] (
+            mode : 1
+            code : i
+        )
+    )
+    char result : 0
+
+    if [mode == 0] (
+        result : code + 4
+    ) else (
+        result : code + 0x39
+    )
+    ret result
+)
+
+box getchar[] (
+    ## abcdefghijclmnopqrstuvwxyz... - 26 + 27 = 53 (27 - others)
+    ## key_up = 30
+    ## key_down = 31
+    ## key_right = 16
+    ## key_left = 17
+    char c : open getkey[]
+    char result : '?' ## Variable where contains character from keyboard
+
+    char layout_chars[57] : "abcdefghijklmnopqrstuvwxyz1234567890\x0A\x1B\x7F\x09 -=[]\\`';'`,./"
+    char shifted_chars[57] : "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()\x0A\x1B\x7F\x09 _+{}|~:\\\"~<>?"
+    char extra[26] : "\x13\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\x14\x17\x12\x07\xC3\xC2\xFE\xB4\xC1\x10\x11\x1F\x1E"
+    ## .shiftd: bytes "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#^$%^^&*()" $0A $1B $7F $09 " _+{}|~:\"~<>?"
+
+    if [c < 0x39] (
+        char index : c - 4
+        char is_shift : open is_shift_pressed[]
+
+
+        ##open printf["index: %i, scancode: %i$", index, c]
+
+        if [is_shift == 1] (
+            result : shifted_chars[index]
+        ) else (
+            result : layout_chars[index]
+        )
+
+    ) else (
+        char index : c - 0x39
+        result : extra[index]
+    )
+    ret result
 )

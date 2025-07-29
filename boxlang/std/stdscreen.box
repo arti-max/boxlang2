@@ -1,0 +1,195 @@
+
+char* text_ptr : 0
+char* videomode_ptr : 0x49FF00
+num16* color_ptr : 0x4A0000
+num32 buffer_length : 0
+char auto_flush : 0
+
+char cursor_x : 0
+char cursor_y : 0
+
+char _current_character_color : 7
+
+char text_screen_width : 80
+char text_screen_height : 60
+
+box init_text_mode[] (
+    @videomode_ptr : 2
+    text_ptr : 0x4F0000
+    buffer_length : 9600
+
+    cursor_x : 0
+    cursor_y : 0
+    open set_cursor_pos[0, 0]
+
+    open init_standard_colors[]
+)
+
+box set_auto_flush[char v] (
+    auto_flush : v
+)
+
+box init_cga_mode[] (
+    @videomode_ptr : 0
+    buffer_length : 307200
+)
+
+box init_graphics_mode[] (
+    @videomode_ptr : 1
+    buffer_length : 307200
+)
+
+box init_standard_colors[] (
+    ## Инициализирует палитру стандартными 16 цветами CGA (RGB555)
+    
+    num16* palette : 0x4A0000
+
+    @palette : 0x0000 ## 0: Black
+    palette : palette + 2
+    @palette : 0x5400 ## 1: Red
+    palette : palette + 2
+    @palette : 0x02A0 ## 2: Green
+    palette : palette + 2
+    @palette : 0x56A0 ## 3: Yellow (Brown)
+    palette : palette + 2
+    @palette : 0x0015 ## 4: Blue
+    palette : palette + 2
+    @palette : 0x5415 ## 5: Magenta
+    palette : palette + 2
+    @palette : 0x02B5 ## 6: Cyan
+    palette : palette + 2
+    @palette : 0x56B5 ## 7: White (Light Gray)
+    palette : palette + 2
+    @palette : 0x294A ## 8: Gray (Dark)
+    palette : palette + 2
+    @palette : 0x7D4A ## 9: Bright Red
+    palette : palette + 2
+    @palette : 0x2BEA ## 10: Bright Green
+    palette : palette + 2
+    @palette : 0x7FEA ## 11: Bright Yellow
+    palette : palette + 2
+    @palette : 0x295F ## 12: Bright Blue
+    palette : palette + 2
+    @palette : 0x7D5F ## 13: Bright Magenta
+    palette : palette + 2
+    @palette : 0x2BFF ## 14: Bright Cyan
+    palette : palette + 2
+    @palette : 0x7FFF ## 15: Bright White
+)
+
+box screen_flush[] (
+    kasm["int $11"]
+)
+
+box clear_screen[char attribute] (
+    if [@videomode_ptr == 2] (
+        text_ptr : 0x4F0000
+        num32 i : 0
+        for [num32 i:0;i<buffer_length;i:i+2] (
+            @text_ptr : ' '
+            text_ptr : text_ptr + 1
+            @text_ptr : attribute
+            text_ptr : text_ptr + 1
+        )
+        if [auto_flush == 1] (
+            open screen_flush[]
+        )
+        text_ptr : 0x4F0000
+    )
+)
+
+box get_cursor_address[char x, char y] (
+    num32 o1 : y * text_screen_width + x
+    num32 o2 : o1 * 2
+    num32 addr : 0x4F0000 + o2
+    ret addr
+)
+
+box set_cursor_pos[char x, char y] (
+    cursor_x : x
+    cursor_y : y
+    num32 addr : open get_cursor_address[x, y]
+    text_ptr : addr
+)
+
+box get_cursor_x[] (
+    ret cursor_x
+)
+
+box get_cursor_y[] (
+    ret cursor_y
+)
+
+box update_cursor[] (
+    if [cursor_x > text_screen_width] (
+        cursor_x : 0
+        cursor_y : cursor_y + 1
+    )
+    if [cursor_y > text_screen_height] (
+        cursor_y : 0
+    )
+
+    open set_cursor_pos[cursor_x, cursor_y]
+)
+
+box print_newline[] (
+    cursor_x : 0
+    cursor_y : cursor_y + 1
+    open update_cursor[]
+)
+
+box set_character_color[char color] (
+    _current_character_color : color
+)
+
+box print_char[char c] (
+    if [c == 0x0A] (
+        open print_newline[]
+    ) else (
+        @text_ptr : c
+        text_ptr : text_ptr + 1
+        @text_ptr : _current_character_color
+        text_ptr : text_ptr + 1
+
+        cursor_x : cursor_x + 1
+        open update_cursor[]
+    )
+
+    if [auto_flush == 1] (
+        open screen_flush[]
+    )
+)
+
+box print[char* str] (
+    while [@str != 0] (
+        open print_char[@str]
+        str : str + 1
+    )
+)
+
+box print_num[num32 number] (
+    char numbers[256]
+    num16 i:0
+
+    if [number == 0] (
+        open print_char['0']
+        ret 0
+    )
+    if [number < 0] (
+        open print_char['-']
+        number : number * -1
+    )
+    while [number != 0] (
+        num32 digit : number % 10
+        char char_code : digit + '0'
+        number : number // 10
+        numbers[i] : char_code
+        i:i+1
+    )
+
+    while [i != 0] (
+        i : i - 1
+        open print_char[numbers[i]]
+    )
+)
+

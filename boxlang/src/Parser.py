@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from lib.TokenType import TokenType
 from lib import AST
 
@@ -48,113 +49,97 @@ class Parser:
         
         return base_type_name
     
-    def parse_unary(self):
-        """Парсит унарные операторы (&, @)."""
-        token = self.current_token
-        if token.type == TokenType.AMPERSAND:
-            self.eat(TokenType.AMPERSAND)
-            # Узел, адрес которого мы берем. Рекурсивно вызываем parse_unary,
-            # чтобы обработать, например, &@ptr.
-            node = self.parse_unary()
-            # Проверяем, что адрес берется от допустимого объекта (l-value).
-            if not isinstance(node, (AST.VariableReferenceNode, AST.ArrayAccessNode, AST.DereferenceNode)):
-                self.error_handler.raise_syntax_error(
-                    "Operator '&' can only be applied to a variable, array element, or a dereferenced pointer.", token
-                )
-            return AST.AddressOfNode(node)
-            
-        elif token.type == TokenType.AT:
-            self.eat(TokenType.AT)
-            # Рекурсивный вызов для поддержки вложенного разыменования, например, @@ptr.
-            node = self.parse_unary()
-            return AST.DereferenceNode(node)
-            
-        # Если унарного оператора нет, парсим базовый элемент (число, переменную, скобки).
-        return self.parse_term()
 
     def parse_statement(self):
-        """Парсит одну инструкцию."""
+        """
+        Парсит одну инструкцию.
+        Это ключевой метод-диспетчер, который определяет тип инструкции.
+        """
         token_type = self.current_token.type
 
-        # Сначала проверяем на ключевые слова, начинающие инструкцию
+        # === ШАГ 1: Проверка на ключевые слова, начинающие инструкции ===
+        if token_type == TokenType.IF:
+            return self.parse_if_statement()
+        if token_type == TokenType.WHILE:
+            return self.parse_while_statement()
+        if token_type == TokenType.FOR:
+            return self.parse_for_statement()
+        if token_type == TokenType.RET:
+            return self.parse_return_statement()
+        if token_type == TokenType.MATCH:
+            return self.parse_match_statement()
+        # Вот исправление: KASM и KASMF должны проверяться здесь, в самом начале
         if token_type == TokenType.KASM:
             return self.parse_kasm_statement()
         if token_type == TokenType.KASMF:
             return self.parse_kasmf_statement()
-        if token_type == TokenType.FOR:
-            return self.parse_for_statement()
-        if token_type == TokenType.IF:
-            return self.parse_if_statement()
-        if token_type == TokenType.MATCH:
-            return self.parse_match_statement()
-        if token_type == TokenType.WHILE:
-            return self.parse_while_statement()
-        if token_type == TokenType.RET:
-            return self.parse_return_statement()
 
-        # --- НОВАЯ УЛУЧШЕННАЯ ЛОГИКА ---
-        # Определяем, является ли это объявлением переменной.
-        # Это объявление, если оно начинается со встроенного типа (num32 и т.д.)
-        # ИЛИ если это идентификатор, за которым следует другой идентификатор ("Player p1").
+        # === ШАГ 2: Проверка, является ли это объявлением переменной/массива ===
+        # Объявление, если начинается с типа (num32) или с имени типа (Player p1)
         is_declaration = token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]
         if not is_declaration and token_type == TokenType.IDENT:
-            # Заглядываем на один токен вперед, не "съедая" его
+            # Заглядываем вперед: если "имя имя", то это объявление типа "Player p1"
             if self.lexer.peek().type == TokenType.IDENT:
                 is_declaration = True
         
         if is_declaration:
             return self.parse_variable_or_array_declaration()
+
+        # === ШАГ 3: Если это не ключевое слово и не объявление, то это выражение ===
+        # Это может быть присваивание (a : 5) или вызов функции (open func[]).
         
-        # Если это не объявление, то это должна быть инструкция на основе выражения:
-        # присваивание или вызов функции.
-        
-        # Парсим левую часть как полноценное выражение.
-        # Это может быть 'my_var', 'my_array[0]', '@my_ptr' или вызов функции.
+        # Парсим левую часть как полноценное выражение
         left_node = self.parse_expression()
 
-        # Если после выражения идет ':', значит, это присваивание.
         if self.current_token.type == TokenType.COLON:
             self.eat(TokenType.COLON)
-            
-            # Проверяем, что левая часть является допустимой целью (l-value)
             if not isinstance(left_node, (AST.VariableReferenceNode, AST.ArrayAccessNode, AST.DereferenceNode, AST.PropertyAccessNode)):
                 self.error_handler.raise_syntax_error(
-                    "Invalid assignment target.", self.current_token
-                )
+                    "Invalid assignment target.", self.current_token)
             
             right_expression = self.parse_expression()
+            # Используем старое имя 'variable' вместо 'target'
             return AST.AssignmentNode(left_node, right_expression)
-        
-        # Если это не присваивание, то это должно быть выражение, имеющее смысл само по себе,
-        # например, вызов функции. Такие выражения, как 'a + b', бессмысленны как отдельная инструкция.
+
         if not isinstance(left_node, AST.FunctionCallNode):
             self.error_handler.raise_syntax_error(
-                "This statement has no effect. Only function calls or assignments are allowed here.", 
-                self.current_token
-            )
-            
+                "This statement has no effect.", self.current_token)
+
         return left_node
 
     def parse_if_statement(self):
-        """Парсит конструкцию 'if [condition] ( if_body ) else ( else_body )'."""
+        """
+        Парсит конструкцию 'if [condition] ( if_body )', а также
+        опциональные блоки 'else if' и 'else'.
+        """
         self.eat(TokenType.IF)
-        
         self.eat(TokenType.BRACKET_OPEN)
         condition_node = self.parse_expression()
         self.eat(TokenType.BRACKET_CLOSE)
-        
+
         self.eat(TokenType.PAREN_OPEN)
         if_body = self.parse_block()
         self.eat(TokenType.PAREN_CLOSE)
-        
+
         else_body = None
         if self.current_token.type == TokenType.ELSE:
             self.eat(TokenType.ELSE)
-            self.eat(TokenType.PAREN_OPEN)
-            else_body = self.parse_block()
-            self.eat(TokenType.PAREN_CLOSE)
-            
-        # ИСПРАВЛЕНО: была опечатка 'condition' вместо 'condition_node'
+
+            # ### КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ###
+            # Проверяем, является ли это конструкцией 'else if'.
+            if self.current_token.type == TokenType.IF:
+                # Если да, то тело блока 'else' - это просто еще одна
+                # полная инструкция 'if'. Мы рекурсивно вызываем
+                # этот же метод, чтобы ее спарсить.
+                # Результат заворачиваем в список, чтобы сохранить
+                # структуру, так как `else_body` ожидается как список.
+                else_body = [self.parse_if_statement()]
+            else:
+                # Если это обычный 'else', парсим его тело как блок.
+                self.eat(TokenType.PAREN_OPEN)
+                else_body = self.parse_block()
+                self.eat(TokenType.PAREN_CLOSE)
+
         return AST.IfNode(condition_node, if_body, else_body)
     
     def parse_match_statement(self):
@@ -227,24 +212,84 @@ class Parser:
     # Этот блок кода заменяет старые методы parse_expression и parse_term
 
     def parse_expression(self):
-        """Высший уровень выражения. Начинаем со сравнения."""
-        return self.parse_comparison()
+        """Стартовая точка для парсинга любого выражения."""
+        return self.parse_logical_or()
+    
+    def parse_logical_or(self):
+        """Парсит логическое ИЛИ (||). Самый низкий приоритет."""
+        node = self.parse_logical_and()
+        while self.current_token.type == TokenType.LOGICAL_OR:
+            op_token = self.current_token
+            self.eat(TokenType.LOGICAL_OR)
+            right = self.parse_logical_and()
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+        return node
+    
+    def parse_logical_and(self):
+        """Парсит логическое И (&&)."""
+        node = self.parse_comparison()
+        while self.current_token.type == TokenType.LOGICAL_AND:
+            op_token = self.current_token
+            self.eat(TokenType.LOGICAL_AND)
+            right = self.parse_comparison()
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+        return node
+    
+    def parse_bitwise_or(self):
+        """ Уровень 9: Побитовое ИЛИ """
+        node = self.parse_bitwise_xor()
+        while self.current_token.type == TokenType.BIT_OR:
+            op_token = self.current_token
+            self.eat(TokenType.BIT_OR)
+            right = self.parse_bitwise_xor()
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+        return node
+    
+    def parse_bitwise_xor(self):
+        """ Уровень 8: Побитовое исключающее ИЛИ (XOR) """
+        node = self.parse_bitwise_and()
+        while self.current_token.type == TokenType.BIT_XOR:
+            op_token = self.current_token
+            self.eat(TokenType.BIT_XOR)
+            right = self.parse_bitwise_and()
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+        return node
 
+    def parse_bitwise_and(self):
+        """ Уровень 7: Побитовое И """
+        node = self.parse_comparison()
+        # ### ИЗМЕНЕНО: Проверяем на AMPERSAND вместо BIT_AND ###
+        while self.current_token.type == TokenType.AMPERSAND:
+            op_token = self.current_token
+            # ### ИЗМЕНЕНО: "Съедаем" AMPERSAND ###
+            self.eat(TokenType.AMPERSAND)
+            right = self.parse_comparison()
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+        return node
+    
     def parse_comparison(self):
-        """Парсит операции сравнения: a == b, a < b, и т.д."""
+        """Парсит операции сравнения: ==, !=, <, >, <=, >="""
         node = self.parse_additive()
         op_types = [TokenType.EQ_EQ, TokenType.NOT_EQ, TokenType.LT, TokenType.GT, TokenType.LTE, TokenType.GTE]
-        
-        if self.current_token.type in op_types:
+        while self.current_token.type in op_types:
             op = self.current_token
             self.eat(op.type)
             right = self.parse_additive()
             node = AST.ComparisonNode(left=node, op=op.value, right=right)
-            
+        return node
+    
+    def parse_shift(self):
+        """ Уровень 5: Побитовые сдвиги (<<, >>) """
+        node = self.parse_additive()
+        while self.current_token.type in (TokenType.LSHIFT, TokenType.RSHIFT):
+            op_token = self.current_token
+            self.eat(op_token.type)
+            right = self.parse_additive()
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
         return node
 
     def parse_additive(self):
-        """Парсит сложение и вычитание."""
+        """ Уровень 4: Сложение и вычитание """
         node = self.parse_multiplicative()
         while self.current_token.type in (TokenType.PLUS, TokenType.MINUS):
             op_token = self.current_token
@@ -254,13 +299,93 @@ class Parser:
         return node
 
     def parse_multiplicative(self):
-        """Парсит умножение и деление."""
-        node = self.parse_unary()  # <<< ИЗМЕНЕНИЕ
-        while self.current_token.type in (TokenType.MULTIPLY, TokenType.DIVIDE):
+        """ Уровень 3: Умножение, деление, остаток """
+        node = self.parse_unary()
+        op_types = [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.FLOOR_DIV, TokenType.MODULO]
+        while self.current_token.type in op_types:
             op_token = self.current_token
             self.eat(op_token.type)
-            right = self.parse_unary() # <<< ИЗМЕНЕНИЕ
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            right = self.parse_unary()
+            # Для // и / оператор в AST будет один - //, так как деление целочисленное
+            op_val = '//' if op_token.type in [TokenType.FLOOR_DIV, TokenType.DIVIDE] else op_token.value
+            node = AST.BinaryOperationNode(left=node, operator=op_val, right=right)
+        return node
+
+    def parse_unary(self):
+        """ Уровень 2: Унарные операторы (+, -, @, &) """
+        token = self.current_token
+        if token.type == TokenType.MINUS:
+            self.eat(TokenType.MINUS)
+            return AST.UnaryOpNode(op=token, node=self.parse_unary())
+        elif token.type == TokenType.PLUS:
+            self.eat(TokenType.PLUS)
+            return self.parse_unary() # Унарный плюс просто игнорируется
+        elif token.type == TokenType.AMPERSAND: # & (взятие адреса)
+            self.eat(TokenType.AMPERSAND)
+            node = self.parse_unary()
+            if not isinstance(node, (AST.VariableReferenceNode, AST.ArrayAccessNode, AST.DereferenceNode, AST.PropertyAccessNode)):
+                self.error_handler.raise_syntax_error(
+                    "Operator '&' can only be applied to a variable, array element, or a dereferenced pointer.", token)
+            return AST.AddressOfNode(node)
+        elif token.type == TokenType.AT: # @ (разыменование)
+            self.eat(TokenType.AT)
+            node = self.parse_unary()
+            return AST.DereferenceNode(node)
+        
+        return self.parse_primary()
+    
+    def parse_primary(self):
+        """ Уровень 1: Литералы, переменные, выражения в скобках. """
+        token = self.current_token
+
+        if token.type == TokenType.NUMBER:
+            self.eat(TokenType.NUMBER)
+            return AST.NumberLiteralNode(token.value)
+        elif token.type == TokenType.CHAR_LIT:
+            self.eat(TokenType.CHAR_LIT)
+            return AST.CharLiteralNode(token.value)
+        elif token.type == TokenType.STRING:
+            self.eat(TokenType.STRING)
+            return AST.StringLiteralNode(token.value)
+        
+        # ### ИЗМЕНЕНИЕ: Возвращаем логику, которая генерирует старый AST ###
+        elif token.type == TokenType.IDENT:
+            # Этот метод будет создавать простые узлы ArrayAccessNode(name, index)
+            return self.parse_variable_or_array_access()
+            
+        elif token.type == TokenType.OPEN:
+            return self.parse_function_call()
+        elif token.type == TokenType.PAREN_OPEN:
+            self.eat(TokenType.PAREN_OPEN)
+            node = self.parse_expression()
+            self.eat(TokenType.PAREN_CLOSE)
+            return node
+        else:
+            self.error_handler.raise_syntax_error(f"Unexpected token in expression: {token.type.name}", token)
+            
+    def parse_identifier_related(self):
+        """ Парсит все, что начинается с идентификатора: var, var[i], var.field """
+        name_token = self.current_token
+        self.eat(TokenType.IDENT)
+        
+        node = AST.VariableReferenceNode(name_token.value)
+
+        # Цикл для обработки цепочек вызовов: var.field[i].other_field
+        while self.current_token.type in [TokenType.BRACKET_OPEN, TokenType.DOT]:
+            if self.current_token.type == TokenType.BRACKET_OPEN:
+                # Доступ к элементу массива: arr[idx]
+                self.eat(TokenType.BRACKET_OPEN)
+                index_node = self.parse_expression()
+                self.eat(TokenType.BRACKET_CLOSE)
+                node = AST.ArrayAccessNode(node, index_node) # Теперь узел-владелец может быть сложным
+            
+            elif self.current_token.type == TokenType.DOT:
+                # Доступ к полю/свойству
+                self.eat(TokenType.DOT)
+                property_token = self.current_token
+                self.eat(TokenType.IDENT)
+                node = AST.PropertyAccessNode(node, property_token.value)
+
         return node
 
     def parse_term(self):
@@ -299,64 +424,62 @@ class Parser:
         return AST.AssignmentNode(left_node, expression)
 
     def parse_variable_or_array_access(self):
-        """Парсит 'var', 'arr[idx]' или 'arr.length'."""
-        var_name_token = self.current_token
+        """Парсит 'var', 'arr[idx]' или 'var.field' и создает узлы в старом формате."""
+        name_token = self.current_token
         self.eat(TokenType.IDENT)
-        
+
         if self.current_token.type == TokenType.BRACKET_OPEN:
-            # Доступ к элементу массива: arr[idx]
+            # Доступ к элементу массива
             self.eat(TokenType.BRACKET_OPEN)
             index_node = self.parse_expression()
             self.eat(TokenType.BRACKET_CLOSE)
-            return AST.ArrayAccessNode(var_name_token.value, index_node)
+            return AST.ArrayAccessNode(name_token.value, index_node)
         
         elif self.current_token.type == TokenType.DOT:
-            # Доступ к свойству: arr.length
+            # Доступ к полю/свойству
             self.eat(TokenType.DOT)
-            property_name_token = self.current_token
+            property_token = self.current_token
             self.eat(TokenType.IDENT)
-            return AST.PropertyAccessNode(var_name_token.value, property_name_token.value)
-        
+            return AST.PropertyAccessNode(name_token.value, property_token.value)
+            
         else:
             # Обычная ссылка на переменную
-            return AST.VariableReferenceNode(var_name_token.value)
+            return AST.VariableReferenceNode(name_token.value)
             
     def parse_variable_or_array_declaration(self):
         """Парсит 'num32 x', 'num32* p', 'num32 arr[10]' и 'Player p'."""
-        
-        # Тип теперь может быть не только ключевым словом (num32),
-        # но и идентификатором (имя структуры, например, Player)
         if self.current_token.type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]:
-             var_type_value = self.parse_type()
+            var_type_value = self.parse_type()
         elif self.current_token.type == TokenType.IDENT:
-            # Это объявление переменной типа структуры, например 'Player p'
             var_type_value = self.current_token.value
             self.eat(TokenType.IDENT)
         else:
             self.error_handler.raise_syntax_error(
-                "Expected a data type or a struct name.", self.current_token
-            )
+                "Expected a data type or a struct name.", self.current_token)
 
         var_name = self.current_token
         self.eat(TokenType.IDENT)
-        
+
         if self.current_token.type == TokenType.BRACKET_OPEN:
-            # Массивы структур пока не поддерживаем, но основа заложена
+            # Объявление массива
             self.eat(TokenType.BRACKET_OPEN)
             size_node = self.parse_expression()
             self.eat(TokenType.BRACKET_CLOSE)
-            return AST.ArrayDeclarationNode(var_type_value, var_name.value, size_node)
-        
-        # --- ИСПРАВЛЕНИЕ НАЧАЛО ---
-        # Возвращаем старую, правильную логику. Парсер должен просто
-        # разбирать синтаксис, а не проверять правила.
-        initial_value = None
-        if self.current_token.type == TokenType.COLON:
-            self.eat(TokenType.COLON)
-            initial_value = self.parse_expression()
-        # --- ИСПРАВЛЕНИЕ КОНЕЦ ---
-        
-        return AST.VariableDeclarationNode(var_type_value, var_name.value, initial_value)
+
+            # ### <-- ИЗМЕНЕНИЕ: Проверяем наличие инициализатора для массива
+            initial_value = None
+            if self.current_token.type == TokenType.COLON:
+                self.eat(TokenType.COLON)
+                initial_value = self.parse_expression() # Может быть строкой
+
+            return AST.ArrayDeclarationNode(var_type_value, var_name.value, size_node, initial_value)
+        else:
+            # Объявление обычной переменной
+            initial_value = None
+            if self.current_token.type == TokenType.COLON:
+                self.eat(TokenType.COLON)
+                initial_value = self.parse_expression()
+            return AST.VariableDeclarationNode(var_type_value, var_name.value, initial_value)
 
     def parse_function_call(self):
         """Парсит 'open func[arg1, arg2]'."""
@@ -381,42 +504,48 @@ class Parser:
         return AST.ReturnNode(value_node)
 
     def parse_param_list(self):
+        """
+        Парсит список параметров.
+        Возвращает кортеж (список_параметров, флаг_вариативности).
+        """
         params = []
+        is_variadic = False # <<< НОВОЕ
         self.eat(TokenType.BRACKET_OPEN)
         
         if self.current_token.type != TokenType.BRACKET_CLOSE:
             while True:
-                # --- ИЗМЕНЕНИЕ НАЧАЛО ---
-                # Используем наш вспомогательный метод parse_type, чтобы 
-                # корректно обработать типы 'num32' и 'num32*'.
+                # <<< НОВОЕ: Проверяем на многоточие >>>
+                if self.current_token.type == TokenType.ELLIPSIS:
+                    self.eat(TokenType.ELLIPSIS)
+                    is_variadic = True
+                    break # Многоточие должно быть последним элементом
+
                 param_type_value = self.parse_type()
-                
                 param_name = self.current_token
                 self.eat(TokenType.IDENT)
                 
-                # Сохраняем полное имя типа ('num32*') и имя параметра.
                 params.append((param_type_value, param_name.value))
-                # --- ИЗМЕНЕНИЕ КОНЕЦ ---
 
                 if self.current_token.type != TokenType.COMMA:
                     break
                 self.eat(TokenType.COMMA)
         
         self.eat(TokenType.BRACKET_CLOSE)
-        return params
+        return params, is_variadic # <<< ИЗМЕНЕНИЕ
         
     def parse_function_declaration(self):
         """Парсит 'box name[params] ( body )'."""
         self.eat(TokenType.BOX)
         name = self.current_token
         self.eat(TokenType.IDENT)
-        params = self.parse_param_list()
+        
+        params, is_variadic = self.parse_param_list()
         
         self.eat(TokenType.PAREN_OPEN)
         body = self.parse_block()
         self.eat(TokenType.PAREN_CLOSE)
         
-        return AST.FunctionDeclarationNode(name.value, params, body)
+        return AST.FunctionDeclarationNode(name.value, params, body, is_variadic)
     
     def parse_kasm_statement(self):
         """Парсит 'kasm["..."]'."""

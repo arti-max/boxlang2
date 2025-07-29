@@ -1,0 +1,19 @@
+@incl <stdscreen>
+
+
+
+box _start[] (
+    open set_auto_flush[1]
+    open init_text_mode[]
+    open clear_screen[0]
+
+    open print["lol, this is print function\n eto perenos strok, dada\nv\not\ntak\n :)"]
+    open set_character_color[3]
+    open print["another character color!\n"]
+    open set_character_color[6]
+    open print["Numbers: \n"]
+    open print_num[123]
+    open print_newline[]
+
+    kasm["trap"]
+)

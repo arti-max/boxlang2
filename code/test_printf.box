@@ -1,0 +1,17 @@
+@incl <stdprint>
+@incl <stdlib>
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    num32 numb : 233
+    num32 numb2 : 454
+
+    open print["test$"]
+
+    open printf["n1 : %i, n2: %i", numb, numb2]
+
+    open trapf[]
+
+)

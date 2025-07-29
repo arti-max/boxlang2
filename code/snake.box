@@ -1,0 +1,300 @@
+@incl <stdlib>
+@incl <govnos>
+
+char direction : 0
+
+char width : 40
+char height : 20
+num16 apple_x : 0
+num16 apple_y : 0
+
+num16 x : 0
+num16 y : 0
+
+char snake_x[256]
+char snake_y[256]
+char game_map[800]
+num32 snakeTailLength : 0
+num32 score : 0
+
+char in_loop : 1
+
+char author[6]
+
+box _start[] (
+    num32 ebp_d : 0
+    kasmf["sd {} %ebp", &ebp_d]
+    open init_govnos_app[ebp_d]
+    open init_text_mode[]
+    open clear_screen[0]
+
+    open init[]
+
+    while [in_loop == 1] (
+        open game_loop[]
+    )
+
+    open clear_screen[0]
+    open set_cursor_pos[0, 0]
+    open exit_to_shell[]
+
+)
+
+box init[] (
+    x : width / 2
+    y : height / 2
+
+    apple_x : open randrange[width]
+    apple_y : open randrange[height]
+    while [apple_x == 0] (
+        apple_x : open randrange[width]
+    )
+    while [apple_y == 0] (
+        apple_y : open randrange[height]
+    )
+
+    author[0] : 'a'
+    author[1] : 'r'
+    author[2] : 't'
+    author[3] : 'i'
+)
+
+box game_loop[] (
+    open draw[]
+    open key_logic[]
+    open update[]
+    open sleep[open get_sleep_time[]]
+)
+
+box get_sleep_time[] (
+    num32 sleep_time : snakeTailLength - 10
+    if [sleep_time < 0] (
+        sleep_time : 0
+    )
+    sleep_time : 50 - sleep_time
+    if [sleep_time <= 0] (
+        sleep_time : 1
+    )
+    ret sleep_time
+)
+
+box update[] (
+    num32 prevX : snake_x[0]
+    num32 prevY : snake_y[0]
+    num32 prev2X
+    num32 prev2Y
+    snake_x[0] : x
+    snake_y[0] : y 
+    for [num32 i : 1; i < snakeTailLength; i:i+1] (
+        prev2X : snake_x[i]
+        prev2Y : snake_y[i]
+        snake_x[i] : prevX
+        snake_y[i] : prevY
+        prevX : prev2X
+        prevY : prev2Y
+    )
+
+    match[direction] (
+        case [0] (
+            y:y-1
+        )
+        case [1] (
+            y:y+1
+        )
+        case [2] (
+            x:x+1
+        )
+        case [3] (
+            x:x-1
+        )
+    )
+
+    if [x < 0 || x >= width || y < 0 || y >= height] (
+        in_loop : 0
+    )
+
+    for [num32 i : 0; i < snakeTailLength; i:i+1] (
+        if [snake_x[i] == x && snake_y[i] == y] (
+            in_loop : 0
+        )
+    )
+
+    if[x == apple_x && y == apple_y] (
+        apple_x : open randrange[width]
+        apple_y : open randrange[height]
+        while [apple_x == 0] (
+            apple_x : open randrange[width]
+        )
+        while [apple_y == 0] (
+            apple_y : open randrange[height]
+        )
+
+        score:score + 10
+        snakeTailLength:snakeTailLength+1
+    )
+)
+
+box draw[] (
+
+    ## clear game_map array
+    for [num32 i:0; i < 800; i:i+1] (
+        game_map[i] : 0
+    )
+
+    ## draw snake to game_map
+    for [num32 i : 0; i < snakeTailLength; i:i+1] (
+        num16 index : snake_y[i] * width + snake_x[i]
+        game_map[index] : 1 ## 1 - ('o')
+    )
+
+    num16 head_index : y * width + x
+    game_map[head_index] : 2 ## 2 - ('O')
+
+    num16 apple_index : apple_y * width + apple_x
+    game_map[apple_index] : 3 ## 3 - ('*')
+    
+
+    ## Draw buffer game_map to display
+    
+    open set_cursor_pos[0, 0]
+
+    open set_character_color[7]
+    for [num16 i:0; i < width + 2; i:i+1] ( open printf["-"] )
+    open printf["\n"]
+
+    for [num16 cy:0; cy < height; cy:cy+1] (
+        open printf["|"]
+        for [num16 cx:0; cx < width; cx:cx+1] (
+            num16 map_idx : cy * width + cx
+            char tile_type : game_map[map_idx]
+
+            match[tile_type] (
+                case [0] ( open printf[" "] ) ## Void
+                case [1] ( ## Tail
+                    open set_character_color[2]
+                    open printf["o"]
+                    open set_character_color[7]
+                )
+                case [2] ( ## Head
+                    open set_character_color[2]
+                    open printf["O"]
+                    open set_character_color[7]
+                )
+                case [3] ( ## Apple
+                    open set_character_color[1]
+                    open printf["*"]
+                    open set_character_color[7]
+                )
+            )
+        )
+        open printf["|\n"]
+    )
+
+    for [num16 i:0; i < width + 2; i:i+1] ( open printf["-"] )
+    open printf["\n"]
+
+    ## Game info
+    open printf["Score: %i\n", score]
+    open printf["Press W, A, S, D for movement, X to quit.\n"]
+    open printf["Author: %s\n", author]
+    open printf["If you game over, please reboot your system\n"]
+
+    open screen_flush[]
+)
+
+
+## box get_element[char x, char y] (
+##     char index : open get_index[x, y]
+##     char value : game_map[index]
+##     ##open printf["i: %i, x: %i, y: %i, v: %i$", index, x, y, value]
+##     char result : '?'
+
+
+##     match [value] (
+##         case [0] (
+##             ## void
+##             open set_character_color[7]
+##             result : ' '
+##         )
+##         case [1] (
+##             ## snake
+##             open set_character_color[2]
+##             result : '#'
+##         )
+##         case [2] (
+##             ## apple
+##             open set_character_color[1]
+##             result : '*'
+##         )
+##         default (
+##             open set_character_color[7]
+##             result : '?'
+##         )
+##     )
+    
+##     ret result
+## )
+
+## box get_index[char x, char y] (
+##     ret y * width + x
+## )
+
+
+## 0 - up
+## 1 - down
+## 2 - right
+## 3 - left
+box key_logic[] (
+    char key_up : open char_to_scancode['w']
+    char key_down : open char_to_scancode['s']
+    char key_right : open char_to_scancode['d']
+    char key_left : open char_to_scancode['a']
+    char key_q : open char_to_scancode['x']
+
+    char is_key_up : 0
+
+    ##open printf["key_up: %i, key_down: %i, q: %i", key_up, key_down, key_q]
+
+    is_key_up : open key_in_buffer[key_q]
+    if [is_key_up == 1] (
+        in_loop : 0
+    )
+    is_key_up : open key_in_buffer[key_up]
+    if [is_key_up == 1] (
+        if [direction != 1] (
+            direction : 0
+        )
+    )
+    is_key_up : open key_in_buffer[key_down]
+    if [is_key_up == 1] (
+        if [direction != 0] (
+            direction : 1
+        )
+    )
+    is_key_up : open key_in_buffer[key_right]
+    if [is_key_up == 1] (
+        if [direction != 3] (
+            direction : 2
+        )
+    )
+    is_key_up : open key_in_buffer[key_left]
+    if [is_key_up == 1] (
+        if [direction != 2] (
+            direction : 3
+        )
+    )
+)
+
+
+## old:
+
+    ## open printf["/================\ \n"]
+    ## for [char y:0; y<height; y:y+1] (
+    ##     open printf["|"]
+    ##     for [char x:0; x<width; x:x+1] (
+    ##         char element : open get_element[x, y]
+    ##         open printf["%c", element]
+    ##     )
+    ##     open printf["|\n"]
+    ## )
+    ## open printf["\================/\n"]

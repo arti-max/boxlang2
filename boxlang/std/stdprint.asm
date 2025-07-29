@@ -86,7 +86,6 @@ print_char:
     sd %esi %ebx
     
     ; Обновляем экран, чтобы показать изменения
-    int $11
     jmp .char_done
 
 .char_newline:
@@ -104,7 +103,6 @@ print_char:
 .newline_ok:
     mov %esi text_ptr
     sd %esi %ebx
-    int $11
 
 .char_done:
     pop %esi

@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+from lib.TokenType import TokenType
 from lib import AST
 
 class Compiler:
@@ -92,32 +94,60 @@ class Compiler:
         # Шаг 2: Добавляем смещение поля к базовому адресу
         if field_offset > 0:
             self.kasm_code += f"    add %ebx {field_offset} ; offset for field '{field_name}'\n"
+            
+    def _reassemble_string_from_segments(self, segments):
+        """Собирает простую строку из сегментов, превращая байты в символы."""
+        # ### <-- ИЗМЕНЕНИЕ: Добавляем проверку типа ###
+        # Если нам пришла обычная строка, а не список сегментов, просто возвращаем ее.
+        if isinstance(segments, str):
+            return segments
+
+        # Если это список, обрабатываем его как и раньше.
+        result_string = ""
+        for is_string, data in segments:
+            if is_string:
+                result_string += data
+            else:
+                try:
+                    result_string += chr(data)
+                except ValueError:
+                    result_string += '?'
+        return result_string
 
     def get_element_size(self, type_name):
         # Добавьте сюда тип указателя
         return {'num32': 4, 'num16': 2, 'char': 1, 'float': 4, 'char*': 4, 'num32*': 4, 'num16*': 4}.get(type_name, 4) # <<< ИЗМЕНЕНИЕ
 
-    def register_function_signature(self, name, params, return_type=None):
+    def register_function_signature(self, name, params, return_type=None, is_variadic=False):
         """Регистрирует сигнатуру функции для проверки типов"""
         self.function_signatures[name] = {
-            'params': params,  # [(type, name), ...]
-            'return_type': return_type
+            'params': params,
+            'return_type': return_type,
+            'is_variadic': is_variadic
         }
-        
+            
 
     def check_function_call(self, name, args):
         """Проверяет соответствие аргументов сигнатуре функции"""
         if name not in self.function_signatures:
-            # Для пользовательских функций разрешаем вызов
+            # Для пользовательских функций, определенных в том же файле, разрешаем вызов
             return
             
         signature = self.function_signatures[name]
         expected_params = signature['params']
-        
-        if len(args) != len(expected_params):
-            raise TypeError(f"Function '{name}' expects {len(expected_params)} arguments, got {len(args)}")
+        is_variadic = signature.get('is_variadic', False) # <<< НОВОЕ
+
+        if is_variadic:
+            # Если функция вариативная, переданных аргументов должно быть
+            # НЕ МЕНЬШЕ, чем обязательных параметров.
+            if len(args) < len(expected_params):
+                raise TypeError(f"Function '{name}' expects at least {len(expected_params)} arguments, but got {len(args)}")
+        else:
+            # Для обычных функций проверка остается строгой.
+            if len(args) != len(expected_params):
+                raise TypeError(f"Function '{name}' expects exactly {len(expected_params)} arguments, but got {len(args)}")
             
-        # Проверяем типы аргументов
+        # Проверяем типы для обязательных аргументов
         for i, (expected_type, param_name) in enumerate(expected_params):
             arg_type = self.infer_expression_type(args[i])
             if not self.types_compatible(arg_type, expected_type):
@@ -162,28 +192,50 @@ class Compiler:
             if expr_node.property_name == 'length':
                 # .length всегда возвращает число.
                 return 'num32'
+            
+        elif isinstance(expr_node, AST.DereferenceNode):
+            pointer_type = self.infer_expression_type(expr_node.pointer_node)
+            if pointer_type.endswith('*'):
+                return pointer_type[:-1] # Превращаем 'char*' в 'char', 'num32*' в 'num32' и т.д.
+            # Если пытаемся разыменовать не указатель, это ошибка, но пока вернем unknown
+            return 'unknown'
 
         # Если ничего не подошло, мы не знаем тип
         return 'unknown'
+    
+    def visit_UnaryOpNode(self, node):
+        """Генерирует код для унарных операций."""
+        self.visit(node.node)  # Сначала вычисляем значение выражения, оно в %eax
+        if node.op.type == TokenType.MINUS:
+            # Эмулируем операцию neg (отрицание) через two's complement:
+            # neg x  is equivalent to  not x + 1
+            self.kasm_code += " not %eax\n"
+            self.kasm_code += " inx %eax ; Emulated unary minus (negation)\n"
+        # Унарный плюс ничего не делает, поэтому просто его игнорируем
 
     def types_compatible(self, actual_type, expected_type):
-        """Проверяет совместимость типов"""
+        """Проверяет совместимость типов с учетом низкоуровневых особенностей."""
         if actual_type == expected_type:
             return True
-        
-        # Числовые типы частично совместимы
+
+        # Числовые типы частично совместимы между собой
         numeric_types = ['num32', 'num16', 'char']
         if actual_type in numeric_types and expected_type in numeric_types:
             return True
-            
-        # Строки и массивы символов
-        if actual_type == 'char*' and expected_type == 'char*':
+
+        # ### <-- ИЗМЕНЕНИЕ НАЧАЛО: Разрешаем присваивать числа указателям и наоборот ###
+        # Это необходимо для операций вроде `ptr : 0x4F0000`
+        if actual_type == 'num32' and expected_type.endswith('*'):
+            return True
+        
+        if actual_type.endswith('*') and expected_type == 'num32':
+            return True
+        # ### ИЗМЕНЕНИЕ КОНЕЦ ###
+
+        # Упрощенная проверка совместимости указателей (любой указатель совместим с любым другим)
+        if actual_type.endswith('*') and expected_type.endswith('*'):
             return True
 
-        # Указатели (пока упрощенно)
-        if actual_type.endswith('*') and expected_type.endswith('*'): # <<< ДОБАВЛЕНО
-            return True
-            
         return False
 
     def get_array_element_type(self, array_name):
@@ -231,47 +283,52 @@ class Compiler:
             raise Exception(f'No visit method for {type(node).__name__}')
     
     def visit_ComparisonNode(self, node):
-        """
-        Генерирует код для сравнения двух выражений.
-        Результат (1 или 0) помещается в %eax.
-        """
-        # Вычисляем правый операнд и сохраняем его в стеке
+        """Генерирует код для всех операций сравнения, включая эмуляцию."""
         self.visit(node.right)
-        self.kasm_code += "        psh %eax\n"
-        
-        # Вычисляем левый операнд, он остается в %eax
+        self.kasm_code += " psh %eax\n"
         self.visit(node.left)
-        
-        # Извлекаем правый операнд из стека в %ebx
-        self.kasm_code += "        pop %ebx\n"
-        
-        # Сравниваем %eax и %ebx, флаги будут установлены процессором
-        self.kasm_code += "        cmp %eax %ebx\n"
-        
-        # В зависимости от оператора, устанавливаем %eax в 1 (истина) или 0 (ложь)
-        # Мы используем условные переходы, чтобы реализовать это
-        
-        op_to_jump = {
-            '==': 'je',  # Jump if Equal
-            '!=': 'jne', # Jump if Not Equal
-            '<':  'jl',  # Jump if Less
-            '>':  'jg',  # Jump if Greater
-            # '>=' и '<=' потребуют более сложной логики, пока реализуем основные
-        }
-        
-        jump_instruction = op_to_jump.get(node.op)
-        if not jump_instruction:
-            raise NotImplementedError(f"Comparison operator {node.op} not implemented")
+        self.kasm_code += " pop %ebx\n"
+        self.kasm_code += " cmp %eax %ebx\n"
 
         true_label = f".L_comp_true_{self.label_counter}"
         end_label = f".L_comp_end_{self.label_counter}"
         self.label_counter += 1
 
-        self.kasm_code += f"        {jump_instruction} {true_label}\n"
-        self.kasm_code +=  "        mov %eax 0 ; False\n" # Если не прыгнули, результат - ложь
-        self.kasm_code += f"        jmp {end_label}\n"
+        op = node.op
+        jump_instruction = None
+
+        # Простые случаи, поддерживаемые CPU напрямую
+        simple_jumps = {'==': 'je', '!=': 'jne', '<': 'jl', '>': 'jg'}
+        if op in simple_jumps:
+            jump_instruction = simple_jumps[op]
+            self.kasm_code += f" {jump_instruction} {true_label}\n"
+        
+        # Эмуляция 'больше или равно' (>=), что эквивалентно 'не меньше'
+        elif op == '>=':
+            # Прыгаем, если НЕ меньше. `jl` прыгает, если меньше. Значит, если `jl` не сработал, то a >= b.
+            false_label = f".L_comp_false_{self.label_counter}"
+            self.label_counter += 1
+            self.kasm_code += f" jl {false_label}\n"
+            self.kasm_code += f" jmp {true_label}\n"
+            self.kasm_code += f"{false_label}:\n"
+
+        # Эмуляция 'меньше или равно' (<=), что эквивалентно 'не больше'
+        elif op == '<=':
+            # Прыгаем, если НЕ больше.
+            false_label = f".L_comp_false_{self.label_counter}"
+            self.label_counter += 1
+            self.kasm_code += f" jg {false_label}\n"
+            self.kasm_code += f" jmp {true_label}\n"
+            self.kasm_code += f"{false_label}:\n"
+        
+        else:
+            raise NotImplementedError(f"Comparison operator {op} not implemented")
+
+        # Общая часть для всех операторов
+        self.kasm_code += " mov %eax 0 ; False\n"
+        self.kasm_code += f" jmp {end_label}\n"
         self.kasm_code += f"{true_label}:\n"
-        self.kasm_code +=  "        mov %eax 1 ; True\n" # Если прыгнули, результат - истина
+        self.kasm_code += " mov %eax 1 ; True\n"
         self.kasm_code += f"{end_label}:\n"
         
     def visit_IfNode(self, node):
@@ -314,7 +371,7 @@ class Compiler:
         self.array_sizes.clear() # Очищаем размеры массивов для новой функции
 
         # Регистрируем функцию для будущих проверок типов
-        self.register_function_signature(node.name, node.params)
+        self.register_function_signature(node.name, node.params, is_variadic=node.is_variadic)
         
         # --- ШАГ 1: Обработка параметров функции ---
         # Параметры имеют положительное смещение от указателя базы стека (%ebp)
@@ -403,16 +460,40 @@ class Compiler:
         self.kasm_code += f"    jmp .L_ret_{self.current_function_name}\n"
 
     def visit_FunctionCallNode(self, node):
-        # Проверяем типы аргументов
         self.check_function_call(node.name, node.args)
-        
+
+        # ### <-- ИЗМЕНЕНИЕ НАЧАЛО: Логика обработки аргументов переписана ###
         for arg_node in reversed(node.args):
-            self.visit(arg_node)
-            self.kasm_code += "    psh %eax\n"
+            # Проверяем, является ли аргумент строковым литералом
+            if isinstance(arg_node, AST.StringLiteralNode):
+                # Если это строка, мы не можем просто вычислить ее значение.
+                # Нам нужно получить ее метку в секции данных и загрузить адрес.
+                
+                # 1. Сначала "посещаем" узел, чтобы он добавил строку в .data
+                #    и вернул нам свою метку.
+                string_label = self.visit(arg_node) 
+                
+                # 2. Генерируем код для загрузки АДРЕСА этой метки в %eax
+                self.kasm_code += f" mov %eax {string_label}\n"
+            else:
+                # Для всех остальных типов аргументов (числа, переменные и т.д.)
+                # просто вычисляем их значение. Результат будет в %eax.
+                self.visit(arg_node)
+            
+            # 3. Помещаем на стек то, что у нас получилось в %eax 
+            #    (либо адрес строки, либо значение другого аргумента).
+            self.kasm_code += " psh %eax\n"
+        # ### ИЗМЕНЕНИЕ КОНЕЦ ###
         
-        self.kasm_code += f"    jsr {node.name}\n"
+        self.kasm_code += f" jsr {node.name}\n"
+        
+        # Очистка стека после вызова
         if node.args:
-            self.kasm_code += f"    add %esp {len(node.args) * 4}\n"
+            num_args = len(node.args)
+            # Для вариативных функций мы не можем надежно очистить стек здесь,
+            # это должна делать сама вызываемая функция. Но для обычных - можем.
+            if not self.function_signatures.get(node.name, {}).get('is_variadic', False):
+                 self.kasm_code += f" add %esp {num_args * 4}\n"
 
     def visit_ArrayAccessNode(self, node):
         """Обрабатывает чтение значения из массива: `var = arr[i]`"""
@@ -429,10 +510,66 @@ class Compiler:
         self.kasm_code += f"    {op} %ebx %eax ; Load value from address\n"
 
     def visit_ArrayDeclarationNode(self, node):
-        # Сохраняем размер массива для проверки границ
-        if isinstance(node.size_node, AST.NumberLiteralNode):
-            self.array_sizes[node.name] = node.size_node.value
-        pass
+        """
+        Обрабатывает объявление массива.
+        Если есть инициализатор (строка), генерирует код для копирования.
+        """
+        if node.initial_value:
+            if not isinstance(node.initial_value, AST.StringLiteralNode):
+                raise TypeError(f"Array '{node.name}' can only be initialized with a string literal.")
+
+            segments = node.initial_value.segments
+            array_size = self.array_sizes.get(node.name)
+            
+            # Подсчитываем реальную длину инициализатора
+            initializer_len = 0
+            for is_string, data in segments:
+                initializer_len += len(data) if is_string else 1
+
+            if array_size is not None and initializer_len > array_size:
+                raise ValueError(f"Initializer is too long ({initializer_len} bytes) for array '{node.name}' of size {array_size}.")
+
+            var_info = self.get_var_info(node.name)
+            var_type, location, element_size = var_info
+
+            # ### <-- ИЗМЕНЕНИЕ: Новая логика генерации для KASM-совместимости ###
+            if isinstance(location, int): # Локальный массив
+                # 1. Помещаем строку в data_section в нужном формате
+                str_label = f"__str_init_{self.string_counter}"
+                self.string_counter += 1
+                
+                data_line = ""
+                for is_string, data in segments:
+                    if is_string:
+                        safe_str = data.replace('"', '""') # Экранирование кавычек для kasm
+                        data_line += f'"{safe_str}" '
+                    else:
+                        data_line += f"${data:02X} "
+                
+                self.data_section += f'{str_label}: bytes {data_line} 0\n'
+
+                # 2. Генерируем цикл копирования (memcpy)
+                copy_loop_label = f".L_strcpy_{self.label_counter}"
+                copy_end_label = f".L_strcpy_end_{self.label_counter}"
+                self.label_counter += 1
+                
+                self.kasm_code += f" ; --- Initialize array '{node.name}' from {str_label} ---\n"
+                # Адрес назначения (локальный массив) в %esi
+                self.kasm_code += f" mov %esi %ebp\n"
+                self.kasm_code += f" sub %esi {-location}\n"
+                # Адрес источника (строка) в %egi
+                self.kasm_code += f" mov %egi {str_label}\n"
+                # Количество байт для копирования в %ecx
+                self.kasm_code += f" mov %ecx {initializer_len}\n"
+                
+                # Цикл
+                self.kasm_code += f"{copy_loop_label}:\n"
+                self.kasm_code += " lb %egi %eax\n"  # Загрузить байт из источника
+                self.kasm_code += " sb %esi %eax\n"  # Сохранить байт в назначение
+                self.kasm_code += f" lp {copy_loop_label}\n" # Команда 'lp' сама декрементирует %ecx и прыгает, если он не 0
+
+            else: # Глобальный массив (должен быть обработан при сборе глобальных переменных)
+                 raise NotImplementedError("Initialization of global arrays is not fully implemented yet.")
 
     def visit_AssignmentNode(self, node):
         # Проверяем типы при присваивании
@@ -615,10 +752,20 @@ class Compiler:
         return None
 
     def visit_StringLiteralNode(self, node):
-        str_label = f"__str_{self.string_counter}"
+        # node.segments: [(True, 'abc'), (False, 0x0A), ...]
+        label = f"__str_init_{self.string_counter}"
         self.string_counter += 1
-        self.data_section += f'{str_label}: bytes "{node.value}" 0\n'
-        self.kasm_code += f"    mov %eax {str_label}\n"
+        line = ''
+        for is_string, data in node.segments:
+            if is_string:
+                # Экранируем кавычки внутри строки
+                safe = data.replace('"', '\\"')
+                line += f'"{safe}" '
+            else:
+                line += f"${data:02X} "
+        line += '0' # Завершающий ноль для строк
+        self.data_section += f'{label}: bytes {line}\n'
+        return label
     
     def visit_NumberLiteralNode(self, node):
         self.kasm_code += f"    mov %eax {node.value}\n"
@@ -627,7 +774,10 @@ class Compiler:
         self.kasm_code += f"    mov %eax {node.value}\n"
     
     def visit_KasmNode(self, node):
-        self.kasm_code += f"    {node.code_string}\n"
+        # ### <-- ИЗМЕНЕНИЕ: Исправляем обработку KASM ###
+        # Теперь node.code_string это список сегментов. Собираем его.
+        code_string = self._reassemble_string_from_segments(node.code_string)
+        self.kasm_code += f" {code_string}\n"
         
     def visit_KasmfNode(self, node):
         """
@@ -643,44 +793,114 @@ class Compiler:
         if len(node.args) > len(temp_registers):
             raise ValueError(f"Too many arguments for kasmf, max supported is {len(temp_registers)}")
 
+        format_string = self._reassemble_string_from_segments(node.format_string)
+        
         arg_reg_names = []
-        for i, arg_node in enumerate(node.args):
-            # 1. Сохраняем EAX в стек, чтобы защитить его от изменений.
-            self.kasm_code += "    psh %eax\n"
-            
-            # 2. Вычисляем аргумент. Результат, как обычно, окажется в EAX.
+        for arg_node in node.args:
+            # Вычисляем выражение аргумента, результат будет в %eax
             self.visit(arg_node)
             
-            # 3. Выбираем временный регистр и перемещаем в него результат.
-            current_reg_idx = (self.kasmf_reg_idx + i) % len(temp_registers)
-            temp_reg = temp_registers[current_reg_idx]
-            self.kasm_code += f"    mov {temp_reg} %eax\n"
+            # Сохраняем результат в безопасный временный регистр
+            reg_name = f"%e{8 + self.kasmf_reg_idx}"
+            self.kasmf_reg_idx = (self.kasmf_reg_idx + 1) % 24 # Циклично используем регистры e8-e31
+            self.kasm_code += f" mov {reg_name} %eax\n"
+            arg_reg_names.append(reg_name)
             
-            # 4. Восстанавливаем EAX из стека.
-            self.kasm_code += "    pop %eax\n"
-            
-            arg_reg_names.append(temp_reg)
-
-        # Продвигаем глобальный счетчик, чтобы следующий вызов kasmf начал с нового места.
-        self.kasmf_reg_idx = (self.kasmf_reg_idx + len(node.args)) % len(temp_registers)
-            
-        # Форматируем итоговую ассемблерную строку.
-        try:
-            formatted_code = node.format_string.format(*arg_reg_names)
-        except IndexError:
-            raise ValueError("Number of placeholders '{}' in kasmf string does not match number of arguments.")
-            
-        self.kasm_code += f"    {formatted_code}\n"
+        # Теперь .format() будет работать, так как format_string - это строка
+        formatted_code = format_string.format(*arg_reg_names)
+        self.kasm_code += f" {formatted_code}\n"
+        self.kasmf_reg_idx = 0 # Сбрасываем счетчик регистров
 
     def visit_BinaryOperationNode(self, node):
-        self.visit(node.left)
-        self.kasm_code += "    psh %eax\n"
+        """Генерирует код для всех бинарных операций."""
+        
+        # ### ИЗМЕНЕНИЕ: Универсальная логика для арифметических операций ###
+        
+        # 1. Вычисляем правый операнд
         self.visit(node.right)
-        self.kasm_code += "    mov %ebx %eax\n"
-        self.kasm_code += "    pop %eax\n"
-        op_map = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div'}
-        if node.operator in op_map:
-            self.kasm_code += f"    {op_map[node.operator]} %eax %ebx\n"
+        # 2. Сохраняем его в стеке
+        self.kasm_code += " psh %eax\n"
+        # 3. Вычисляем левый операнд, он остается в %eax
+        self.visit(node.left)
+        # 4. Извлекаем правый операнд из стека в %ebx
+        self.kasm_code += " pop %ebx\n"
+        
+        # 5. Выполняем операцию
+        op = node.operator
+        if node.operator in ('&&', '||'):
+            self.visit_LogicalOperationNode(node)
+            return
+        if op == '+':
+            self.kasm_code += " add %eax %ebx\n"
+        elif op == '-':
+            # В GovnoCore32 нет `sub reg, reg`, поэтому эмулируем: a - b => a + (-b)
+            self.kasm_code += " not %ebx\n"
+            self.kasm_code += " inx %ebx\n"
+            self.kasm_code += " add %eax %ebx\n"
+        elif op == '*':
+            # Убираем проверку и предупреждение. Генерируем `mul reg, reg`.
+            # Если kasm это поддерживает, все будет работать.
+            self.kasm_code += " mul %eax %ebx\n"
+        elif op == '/' or op == '//': # Поддержка и / и // для целочисленного деления
+            self.kasm_code += " div %eax %ebx\n"
+        elif op == '%':
+            # `div` помещает остаток в %edx
+            self.kasm_code += " div %eax %ebx\n"
+            self.kasm_code += " mov %eax %edx ; Remainder is in EDX\n"
+        elif op == '<<':
+            self.kasm_code += " sal %eax %ebx\n"
+        elif op == '>>':
+            self.kasm_code += " sar %eax %ebx\n"
+        elif op == '&':
+            self.kasm_code += " and %eax %ebx\n"
+        elif op == '|':
+            self.kasm_code += " ora %eax %ebx\n"
+        elif op == '^':
+            self.kasm_code += " xor %eax %ebx\n"
+        else:
+            raise NotImplementedError(f"Binary operator {op} not implemented in compiler.")
+
+    def visit_LogicalOperationNode(self, node):
+        """Генерирует код для && и || с short-circuiting."""
+        end_label = f".L_logic_end_{self.label_counter}"
+        self.label_counter += 1
+
+        if node.operator == '&&':
+            false_label = f".L_logic_false_{self.label_counter}"
+            self.label_counter += 1
+            
+            self.visit(node.left)
+            self.kasm_code += " cmp %eax 0\n"
+            self.kasm_code += f" je {false_label}\n"
+
+            self.visit(node.right)
+            self.kasm_code += " cmp %eax 0\n"
+            self.kasm_code += f" je {false_label}\n"
+
+            self.kasm_code += " mov %eax 1\n" # True
+            self.kasm_code += f" jmp {end_label}\n"
+            self.kasm_code += f"{false_label}:\n"
+            self.kasm_code += " mov %eax 0\n" # False
+            self.kasm_code += f"{end_label}:\n"
+
+        elif node.operator == '||':
+            true_label = f".L_logic_true_{self.label_counter}"
+            self.label_counter += 1
+
+            self.visit(node.left)
+            self.kasm_code += " cmp %eax 0\n"
+            self.kasm_code += f" jne {true_label}\n"
+
+            self.visit(node.right)
+            self.kasm_code += " cmp %eax 0\n"
+            self.kasm_code += f" jne {true_label}\n"
+
+            self.kasm_code += " mov %eax 0\n" # False
+            self.kasm_code += f" jmp {end_label}\n"
+            self.kasm_code += f"{true_label}:\n"
+            self.kasm_code += " mov %eax 1\n" # True
+            self.kasm_code += f"{end_label}:\n"
+
             
     def visit_MatchNode(self, node):
         """

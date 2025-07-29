@@ -1,0 +1,13 @@
+@incl <stdlib>
+@incl <stdprint>
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[]
+
+    char c : open getchar[]
+
+    open printf["character: %c, number: %i", c, c]
+
+    open trapf[]
+)

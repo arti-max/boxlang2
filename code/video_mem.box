@@ -7,12 +7,20 @@ num32 index : 0
 box _start[] (
 
     open set_color_to_table[COLOR, 1]
-    open draw_pixel[1, 1, 1]
+    num32 x : 0
+    num32 y : 0
 
-    while [index < 10000] (
-        open VIDEO_FLUSH[]
+    while [index < 100000] (
+        open draw_pixel[x, y, 1]
+        x : x + 1
         index : index + 1
     )
+
+    open VIDEO_FLUSH[]
+
+    open trapf[]
+
+    kasm["int $00"]
 
 )
 

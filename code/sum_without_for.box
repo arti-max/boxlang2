@@ -14,7 +14,7 @@ box _start[] (
     array[4] : 5  ## 75
 
     num32 result : 0
-    result : open sum_n32[&array, 5]
+    result : open sum_n32[&array, array.length]
 
     open print_num[result]
     open print["$"]

@@ -1,4 +1,4 @@
-@incl <stdio>
+@incl <stdio.asm>
 
 num16 lol : 42
 
