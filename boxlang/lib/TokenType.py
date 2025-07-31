@@ -20,6 +20,7 @@ class TokenType(Enum):
     WHILE = auto()       # while
     FOR = auto()         # for
     STRUCT = auto()      # struct
+    FLOAT_LIT = auto()   # 3.14
 
     # datatypes
     CHAR = auto()

@@ -222,7 +222,7 @@ class Parser:
             op_token = self.current_token
             self.eat(TokenType.LOGICAL_OR)
             right = self.parse_logical_and()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
     
     def parse_logical_and(self):
@@ -232,7 +232,7 @@ class Parser:
             op_token = self.current_token
             self.eat(TokenType.LOGICAL_AND)
             right = self.parse_comparison()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
     
     def parse_bitwise_or(self):
@@ -242,7 +242,7 @@ class Parser:
             op_token = self.current_token
             self.eat(TokenType.BIT_OR)
             right = self.parse_bitwise_xor()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
     
     def parse_bitwise_xor(self):
@@ -252,7 +252,7 @@ class Parser:
             op_token = self.current_token
             self.eat(TokenType.BIT_XOR)
             right = self.parse_bitwise_and()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
 
     def parse_bitwise_and(self):
@@ -264,7 +264,7 @@ class Parser:
             # ### ИЗМЕНЕНО: "Съедаем" AMPERSAND ###
             self.eat(TokenType.AMPERSAND)
             right = self.parse_comparison()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
     
     def parse_comparison(self):
@@ -275,7 +275,7 @@ class Parser:
             op = self.current_token
             self.eat(op.type)
             right = self.parse_additive()
-            node = AST.ComparisonNode(left=node, op=op.value, right=right)
+            node = AST.ComparisonNode(left=node, op=op.value, right=right, op_token=op)
         return node
     
     def parse_shift(self):
@@ -285,7 +285,7 @@ class Parser:
             op_token = self.current_token
             self.eat(op_token.type)
             right = self.parse_additive()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
 
     def parse_additive(self):
@@ -295,7 +295,7 @@ class Parser:
             op_token = self.current_token
             self.eat(op_token.type)
             right = self.parse_multiplicative()
-            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
 
     def parse_multiplicative(self):
@@ -308,7 +308,7 @@ class Parser:
             right = self.parse_unary()
             # Для // и / оператор в AST будет один - //, так как деление целочисленное
             op_val = '//' if op_token.type in [TokenType.FLOOR_DIV, TokenType.DIVIDE] else op_token.value
-            node = AST.BinaryOperationNode(left=node, operator=op_val, right=right)
+            node = AST.BinaryOperationNode(left=node, operator=op_val, right=right, op_token=op_token)
         return node
 
     def parse_unary(self):
@@ -347,6 +347,9 @@ class Parser:
         elif token.type == TokenType.STRING:
             self.eat(TokenType.STRING)
             return AST.StringLiteralNode(token.value)
+        elif token.type == TokenType.FLOAT_LIT:
+            self.eat(TokenType.FLOAT_LIT)
+            return AST.FloatLiteralNode(token.value)
         
         # ### ИЗМЕНЕНИЕ: Возвращаем логику, которая генерирует старый AST ###
         elif token.type == TokenType.IDENT:

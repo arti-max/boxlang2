@@ -52,12 +52,27 @@ class Lexer:
                 self.advance()
 
     def number(self):
+        """Парсит как целые, так и float-числа."""
         result = ''
         start_col = self.column
+        line = self.line
+
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
-        return Token(TokenType.NUMBER, int(result), self.line, start_col)
+
+        # Проверяем на наличие десятичной точки
+        if self.current_char == '.':
+            result += '.'
+            self.advance()
+            while self.current_char is not None and self.current_char.isdigit():
+                result += self.current_char
+                self.advance()
+            # Это float
+            return Token(TokenType.FLOAT_LIT, float(result), line, start_col)
+        else:
+            # Это целое число
+            return Token(TokenType.NUMBER, int(result), line, start_col)
 
     def string(self):
         segments = []

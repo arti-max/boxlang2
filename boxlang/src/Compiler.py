@@ -1,9 +1,11 @@
 #!/usr/bin/python3
+import struct
 from lib.TokenType import TokenType
 from lib import AST
 
 class Compiler:
-    def __init__(self):
+    def __init__(self, error_handler):
+        self.error_handler = error_handler
         self.kasm_code = ""
         self.data_section = ""
         self.string_counter = 0
@@ -25,6 +27,8 @@ class Compiler:
         
         self.label_counter = 0
         self.kasmf_reg_idx = 0
+        
+        self.float_counter = 0 # Счетчик для уникальных меток float-литералов
         
         # Регистрируем встроенные функции
         self._register_builtin_functions()
@@ -159,6 +163,8 @@ class Compiler:
             return 'num32'
         elif isinstance(expr_node, AST.CharLiteralNode):
             return 'char'
+        elif isinstance(expr_node, AST.FloatLiteralNode):
+            return 'float'
         elif isinstance(expr_node, AST.StringLiteralNode):
             return 'char*'
         elif isinstance(expr_node, AST.VariableReferenceNode):
@@ -180,12 +186,26 @@ class Compiler:
                 return f"{base_type}*"
             return 'unknown'
         elif isinstance(expr_node, AST.BinaryOperationNode):
-            return 'num32'
+            left_type = self.infer_expression_type(expr_node.left)
+            right_type = self.infer_expression_type(expr_node.right)
+            if left_type == 'float' or right_type == 'float':
+                return 'float'
+            else:
+                return 'num32'
+        elif isinstance(expr_node, AST.UnaryOpNode):
+            # Тип результата унарной операции (-a, +a) такой же, как и у самого операнда (a)
+            return self.infer_expression_type(expr_node.node)
         elif isinstance(expr_node, AST.FunctionCallNode):
+            # Прямо указываем возвращаемые типы для встроенных функций
+            if expr_node.name == 'to_float':
+                return 'float'
+            if expr_node.name == 'to_int':
+                return 'num32'
+
+            # Логика для остальных функций остается прежней
             if expr_node.name in self.function_signatures:
                 return self.function_signatures[expr_node.name].get('return_type') or 'num32'
-            return 'num32'
-        
+            return 'num32' # По умолчанию для неизвестных функций
         # <<< НОВОЕ: Добавляем правило для PropertyAccessNode >>>
         elif isinstance(expr_node, AST.PropertyAccessNode):
             # На данный момент у нас есть только одно свойство - .length
@@ -205,12 +225,18 @@ class Compiler:
     
     def visit_UnaryOpNode(self, node):
         """Генерирует код для унарных операций."""
+        node_type = self.infer_expression_type(node.node)
+        
         self.visit(node.node)  # Сначала вычисляем значение выражения, оно в %eax
+        
         if node.op.type == TokenType.MINUS:
-            # Эмулируем операцию neg (отрицание) через two's complement:
-            # neg x  is equivalent to  not x + 1
-            self.kasm_code += " not %eax\n"
-            self.kasm_code += " inx %eax ; Emulated unary minus (negation)\n"
+            if node_type == 'float':
+                # Для float используем специальную FPU-инструкцию NEGF
+                self.kasm_code += " negf32 %eax ; Negate float value by flipping the sign bit\n"
+            else:
+                # Для целых чисел используем стандартный алгоритм (two's complement)
+                self.kasm_code += " not %eax\n"
+                self.kasm_code += " inx %eax\n"
         # Унарный плюс ничего не делает, поэтому просто его игнорируем
 
     def types_compatible(self, actual_type, expected_type):
@@ -283,7 +309,99 @@ class Compiler:
             raise Exception(f'No visit method for {type(node).__name__}')
     
     def visit_ComparisonNode(self, node):
-        """Генерирует код для всех операций сравнения, включая эмуляцию."""
+        """Генерирует код для всех операций сравнения, как для целых, так и для float."""
+        left_type = self.infer_expression_type(node.left)
+        right_type = self.infer_expression_type(node.right)
+
+        true_label = f"__comp_true_{self.label_counter}"
+        end_label = f"__comp_end_{self.label_counter}"
+        self.label_counter += 1
+
+        # --- ВЕТКА ДЛЯ FLOAT ---
+        if left_type == 'float' or right_type == 'float':
+            if left_type != 'float' or right_type != 'float':
+                # Вы можете заменить это на вызов вашего error_handler
+                raise TypeError("Cannot compare float with integer. Use explicit conversion.")
+
+            self.visit(node.right)
+            self.kasm_code += " psh %eax\n"
+            self.visit(node.left)
+            self.kasm_code += " pop %ebx\n"
+            
+            # Используем ваши исправленные имена инструкций
+            self.kasm_code += " subf32 %eax %ebx ; Emulate float comparison\n"
+            
+            op = node.op
+            
+            # --- ФИНАЛЬНАЯ, ИСПРАВЛЕННАЯ ЛОГИКА СРАВНЕНИЙ ---
+            
+            if op == '==':
+                self.kasm_code += " cmp %eax 0\n"
+                self.kasm_code += f" je {true_label}\n"
+            elif op == '!=':
+                self.kasm_code += " cmp %eax 0\n"
+                self.kasm_code += f" jne {true_label}\n"
+            elif op == '<':
+                # 'a < b' истинно, если (a - b) отрицательно (знаковый бит = 1)
+                self.kasm_code += f" and %eax $80000000\n"
+                self.kasm_code += f" cmp %eax $80000000\n"
+                self.kasm_code += f" je {true_label}\n"
+            
+            # --- ИСПРАВЛЕНА ЛОГИКА ДЛЯ > ---
+            elif op == '>':
+                # 'a > b' истинно, если (a - b) положительно.
+                # Это значит: НЕ (отрицательно ИЛИ равно нулю).
+                false_label = f"__comp_false_{self.label_counter}"
+                self.label_counter += 1
+                
+                self.kasm_code += " mov %ecx %eax\n"
+                # Если равно нулю, то ложь
+                self.kasm_code += " cmp %ecx 0\n"
+                self.kasm_code += f" je {false_label}\n"
+                # Если отрицательно, то ложь
+                self.kasm_code += " and %ecx $80000000\n"
+                self.kasm_code += f" cmp %ecx $80000000\n"
+                self.kasm_code += f" je {false_label}\n"
+                # Во всех остальных случаях - истина
+                self.kasm_code += f" jmp {true_label}\n"
+                self.kasm_code += f"{false_label}:\n"
+                
+            # --- ИСПРАВЛЕНА ЛОГИКА ДЛЯ <= ---
+            elif op == '<=':
+                # 'a <= b' истинно, если (a - b) отрицательно ИЛИ равно 0.
+                self.kasm_code += " mov %ecx %eax\n"
+                # Если равно нулю, то истина
+                self.kasm_code += " cmp %ecx 0\n"
+                self.kasm_code += f" je {true_label}\n"
+                # Если отрицательно, то истина
+                self.kasm_code += " and %ecx $80000000\n"
+                self.kasm_code += " cmp %ecx $80000000\n"
+                self.kasm_code += f" je {true_label}\n"
+
+            elif op == '>=':
+                # 'a >= b' истинно, если (a - b) положительно ИЛИ равно 0.
+                # То есть НЕ отрицательно.
+                false_label = f"__comp_false_{self.label_counter}"
+                self.label_counter += 1
+                self.kasm_code += " mov %ecx %eax\n"
+                # Проверяем, отрицательно ли оно. Если да, то ложь.
+                self.kasm_code += " and %ecx $80000000\n"
+                self.kasm_code += " cmp %ecx $80000000\n"
+                self.kasm_code += f" je {false_label}\n"
+                self.kasm_code += f" jmp {true_label}\n"
+                self.kasm_code += f"{false_label}:\n"
+            else:
+                raise NotImplementedError(f"Float comparison for '{op}' is not yet implemented.")
+
+            # Код для установки результата в %eax
+            self.kasm_code += " mov %eax 0 ; False\n"
+            self.kasm_code += f" jmp {end_label}\n"
+            self.kasm_code += f"{true_label}:\n"
+            self.kasm_code += " mov %eax 1 ; True\n"
+            self.kasm_code += f"{end_label}:\n"
+            return
+
+        # --- ВЕТКА ДЛЯ ЦЕЛЫХ ЧИСЕЛ (ваш рабочий код, без изменений) ---
         self.visit(node.right)
         self.kasm_code += " psh %eax\n"
         self.visit(node.left)
@@ -407,7 +525,7 @@ class Compiler:
         self.kasm_code += "    mov %ebp %esp\n"
         
         # Этот "костыль" необходим из-за Big-Endian порядка в стековых операциях эмулятора
-        self.kasm_code += "    add %ebp 1\n"
+        #self.kasm_code += "    add %ebp 1\n"
         
         # Выделяем на стеке место сразу под ВСЕ локальные переменные
         if local_vars_size > 0:
@@ -446,7 +564,7 @@ class Compiler:
             
             # Восстанавливаем стек и возвращаемся
             self.kasm_code += "    mov %esp %ebp\n"
-            self.kasm_code += "    sub %esp 1\n"
+            #self.kasm_code += "    sub %esp 1\n"
             self.kasm_code += "    pop %ebp\n"
             self.kasm_code += "    rts\n"
         else:
@@ -460,6 +578,30 @@ class Compiler:
         self.kasm_code += f"    jmp .L_ret_{self.current_function_name}\n"
 
     def visit_FunctionCallNode(self, node):
+        if node.name == 'to_float':
+            if len(node.args) != 1: raise TypeError("to_float[] expects exactly one argument.")
+            arg_type = self.infer_expression_type(node.args[0])
+            if arg_type == 'float': # Уже float, ничего не делаем
+                self.visit(node.args[0])
+                return
+            if arg_type not in ['num32', 'num16', 'char']:
+                raise TypeError(f"Cannot convert type '{arg_type}' to float.")
+            
+            self.visit(node.args[0]) # Вычисляем целочисленное выражение в %eax
+            self.kasm_code += " cif %eax ; Convert integer in EAX to float\n"
+            return # Завершаем
+
+        if node.name == 'to_int':
+            if len(node.args) != 1: raise TypeError("to_int[] expects exactly one argument.")
+            arg_type = self.infer_expression_type(node.args[0])
+            if arg_type != 'float': # Уже целое или не float
+                self.visit(node.args[0])
+                return
+
+            self.visit(node.args[0]) # Вычисляем float выражение в %eax
+            self.kasm_code += " cfi %eax ; Convert float in EAX to integer\n"
+            return # Завершаем
+        
         self.check_function_call(node.name, node.args)
 
         # ### <-- ИЗМЕНЕНИЕ НАЧАЛО: Логика обработки аргументов переписана ###
@@ -814,7 +956,37 @@ class Compiler:
     def visit_BinaryOperationNode(self, node):
         """Генерирует код для всех бинарных операций."""
         
-        # ### ИЗМЕНЕНИЕ: Универсальная логика для арифметических операций ###
+        left_type = self.infer_expression_type(node.left)
+        right_type = self.infer_expression_type(node.right)
+
+        # --- ВЕТКА ДЛЯ FLOAT ---
+        if left_type == 'float' or right_type == 'float':
+            # Убеждаемся, что оба операнда - float, запрещая неявное приведение
+            if left_type != 'float' or right_type != 'float':
+                message = (
+                    f"Implicit conversion between float and integer is not allowed. "
+                    f"Operation: {left_type} {node.operator} {right_type}"
+                )
+                suggestion = "Use to_float[] or to_int[] to convert types explicitly."
+                self.error_handler.raise_syntax_error(message, node.op_token, suggestion)
+
+            # Оба операнда - float. Используем FPU инструкции.
+            self.visit(node.right)
+            self.kasm_code += " psh %eax\n"
+            self.visit(node.left)
+            self.kasm_code += " pop %ebx\n"
+
+            op_map = {
+                '+': 'addf32', '-': 'subf32', '*': 'mulf32', '/': 'divf32', '//': 'divf32'
+            }
+            if node.operator not in op_map:
+                raise NotImplementedError(f"Operator '{node.operator}' is not supported for floats.")
+
+            kasm_inst = op_map[node.operator]
+            self.kasm_code += f" {kasm_inst} %eax %ebx ; Float operation\n"
+            return # Завершаем, так как ветка float обработана
+
+        # --- ВЕТКА ДЛЯ ЦЕЛЫХ ЧИСЕЛ (существующая логика) ---
         
         # 1. Вычисляем правый операнд
         self.visit(node.right)
@@ -1137,6 +1309,30 @@ class Compiler:
             'size': current_offset,
             'fields': struct_fields
         }
+        
+    def visit_FloatLiteralNode(self, node):
+        """
+        Обрабатывает float-литерал.
+        1. Создает метку в секции данных.
+        2. Конвертирует float в 4 байта.
+        3. Сохраняет байты в секции данных с ПРОБЕЛАМИ в качестве разделителей.
+        4. Генерирует код для загрузки этих данных в %eax.
+        """
+        label = f"__var_float_{self.float_counter}"
+        self.float_counter += 1
+
+        # Конвертируем Python float в 4 байта (little-endian float)
+        packed_float = struct.pack('<f', node.value)
+
+        # Добавляем в секцию данных
+        self.data_section += f"{label}:\n"
+        # ИСПРАВЛЕНО: используем пробел вместо запятой
+        self.data_section += f" bytes {' '.join(str(b) for b in packed_float)} ; Float value: {node.value}\n"
+
+        # Генерируем код для загрузки значения из памяти в %eax
+        # Используем инструкцию `ld` (load dword)
+        self.kasm_code += f" mov %ebx {label}\n"
+        self.kasm_code += f" ld %ebx %eax\n"
 
     def compile(self, ast_root, std_lib_code=""):
         declarations = ast_root.statements
@@ -1181,7 +1377,7 @@ class Compiler:
                 if node.initial_value:
                     # Если есть инициализатор, генерируем код для него.
                     # Этот код будет вставлен в начало функции _start.
-                    temp_compiler = Compiler()
+                    temp_compiler = Compiler(self.error_handler)
                     temp_compiler.global_variables = self.global_variables
                     assignment_node = AST.AssignmentNode(AST.VariableReferenceNode(node.name), node.initial_value)
                     temp_compiler.visit(assignment_node)

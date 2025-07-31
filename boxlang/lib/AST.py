@@ -50,10 +50,11 @@ class VariableReferenceNode(ASTNode):
         self.name = name
 
 class BinaryOperationNode(ASTNode):
-    def __init__(self, left, operator, right):
+    def __init__(self, left, operator, right, op_token):
         self.left = left
         self.operator = operator
         self.right = right
+        self.op_token = op_token
         
 class CharLiteralNode(ASTNode):
     def __init__(self, value):
@@ -81,10 +82,11 @@ class KasmfNode(ASTNode):
         
 class ComparisonNode(ASTNode):
     """Узел для операций сравнения, например, a == b."""
-    def __init__(self, left, op, right):
+    def __init__(self, left, op, right, op_token):
         self.left = left
         self.op = op
         self.right = right
+        self.op_token = op_token
 
 class IfNode(ASTNode):
     """Узел для конструкции if-else."""
@@ -167,3 +169,7 @@ class UnaryOpNode(ASTNode):
     def __init__(self, op, node):
         self.token = self.op = op
         self.node = node
+        
+class FloatLiteralNode(ASTNode):
+    def __init__(self, value):
+        self.value = value

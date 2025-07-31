@@ -33,7 +33,7 @@ def main():
         
         # 4. Compiling
         print("--- Compiling AST to kasm ---")
-        compiler = Compiler()
+        compiler = Compiler(error_handler=error_handler)
         kasm_code = compiler.compile(ast, std_lib_code=library_code)
         
         # 5. Saving
