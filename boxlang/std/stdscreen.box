@@ -1,3 +1,4 @@
+@incl <stdcolors>
 
 char* text_ptr : 0
 char* videomode_ptr : 0x49FF00
@@ -8,7 +9,8 @@ char auto_flush : 0
 char cursor_x : 0
 char cursor_y : 0
 
-char _current_character_color : 7
+char _current_character_color : 15
+char _current_background_color : 0
 
 char text_screen_width : 80
 char text_screen_height : 60
@@ -22,7 +24,11 @@ box init_text_mode[] (
     cursor_y : 0
     open set_cursor_pos[0, 0]
 
+    open init_vga_colors[]
     open init_standard_colors[]
+
+    _current_background_color : VGA_COLORS.BLACK
+    _current_character_color : VGA_COLORS.WHITE
 )
 
 box init_text_mode_beta[] (
@@ -34,7 +40,11 @@ box init_text_mode_beta[] (
     cursor_y : 0
     open set_cursor_pos[0, 0]
 
+    open init_vga_colors[]
     open init_standard_colors[]
+
+    _current_background_color : VGA_COLORS.BLACK
+    _current_character_color : VGA_COLORS.WHITE
 )
 
 box set_auto_flush[char v] (
@@ -93,14 +103,14 @@ box screen_flush[] (
     kasm["int $11"]
 )
 
-box clear_screen[char attribute] (
+box clear_screen[] (
     if [@videomode_ptr == 2] (
         text_ptr : 0x4F0000
         num32 i : 0
         for [num32 i:0;i<buffer_length;i:i+2] (
             @text_ptr : ' '
             text_ptr : text_ptr + 1
-            @text_ptr : attribute
+            @text_ptr : _current_background_color << 4
             text_ptr : text_ptr + 1
         )
         if [auto_flush == 1] (
@@ -154,13 +164,21 @@ box set_character_color[char color] (
     _current_character_color : color
 )
 
+box set_background_color[char color] (
+    _current_background_color : color
+)
+
+box combine_colors[] (
+    ret (_current_background_color << 4) + _current_character_color
+)
+
 box print_char[char c] (
     if [c == 0x0A] (
         open print_newline[]
     ) else (
         @text_ptr : c
         text_ptr : text_ptr + 1
-        @text_ptr : _current_character_color
+        @text_ptr : open combine_colors[]
         text_ptr : text_ptr + 1
 
         cursor_x : cursor_x + 1

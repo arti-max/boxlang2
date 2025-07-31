@@ -3,12 +3,14 @@ from lib.Token import Token
 from lib.TokenType import TokenType
 
 class Lexer:
-    def __init__(self, text):
-        self.text = text
+    def __init__(self, source_lines):
+        self.source_lines = source_lines
+        self.text = "".join([line[2] for line in source_lines])
+        self.line_map = self._create_line_map() # Карта для определения файла/строки
         self.pos = 0
         self.line = 1
         self.column = 1
-        self.current_char = self.text[0] if text else None
+        self.current_char = self.text[0] if self.text else None
         
         self.keywords = {
             'box': TokenType.BOX, 'open': TokenType.OPEN, 'char': TokenType.CHAR,
@@ -20,11 +22,31 @@ class Lexer:
             'kasm': TokenType.KASM, 'kasmf': TokenType.KASMF,
             'for': TokenType.FOR,
             'struct': TokenType.STRUCT,
+            'break': TokenType.BREAK,
+            'continue': TokenType.CONTINUE,
         }
         
         # Сразу токенизируем весь код
         self.tokens = self._tokenize()
         self.token_index = 0
+        
+    def _create_line_map(self):
+        # Создает карту глобальных номеров строк к (файлу, локальному номеру)
+        line_map = {}
+        global_line_num = 1
+        for filename, original_line_num, line_content in self.source_lines:
+            line_map[global_line_num] = (filename, original_line_num)
+            # Если строка содержит несколько \n, нужно это учесть, но для простоты опустим
+            global_line_num += line_content.count('\n')
+        return line_map
+    
+    def _get_source_pos(self, global_line, global_col):
+        # Находит правильный файл и строку по глобальной позиции
+        # Это упрощенная версия. Для точности нужно итерировать до нужной строки.
+        filename, start_line = self.line_map.get(global_line, ("unknown", global_line))
+        return filename, start_line, global_col
+    
+    
 
     def advance(self, count=1):
         for _ in range(count):
@@ -40,7 +62,15 @@ class Lexer:
                 self.column += 1
 
     def make_token(self, ttype, value):
-        return Token(ttype, value, self.line, self.column)
+        # Получаем глобальную позицию
+        global_line = self.text.count('\n', 0, self.pos) + 1
+        last_newline = self.text.rfind('\n', 0, self.pos)
+        global_column = self.pos - last_newline if last_newline != -1 else self.pos + 1
+        
+        # Находим реальный файл и строку
+        filename, line, column = self._get_source_pos(global_line, global_column)
+
+        return Token(ttype, value, line, column, filename)
 
     def skip_whitespace(self):
         while self.current_char is not None and self.current_char.isspace():
@@ -69,10 +99,10 @@ class Lexer:
                 result += self.current_char
                 self.advance()
             # Это float
-            return Token(TokenType.FLOAT_LIT, float(result), line, start_col)
+            return self.make_token(TokenType.FLOAT_LIT, float(result))
         else:
             # Это целое число
-            return Token(TokenType.NUMBER, int(result), line, start_col)
+            return self.make_token(TokenType.NUMBER, int(result))
 
     def string(self):
         segments = []
@@ -124,7 +154,7 @@ class Lexer:
             self.advance()
         
         token_type = self.keywords.get(result, TokenType.IDENT)
-        return Token(token_type, result, self.line, start_col)
+        return self.make_token(token_type, result)
     
     def char_literal(self):
         start_col = self.column
@@ -134,7 +164,7 @@ class Lexer:
         self.advance()
         if self.current_char != "'": raise Exception("Unterminated char literal, expected closing '")
         self.advance() # '
-        return Token(TokenType.CHAR_LIT, ord(char_value), self.line, start_col)
+        return self.make_token(TokenType.CHAR_LIT, ord(char_value))
     
     def hex_or_binary_number(self):
         """Парсит шестнадцатеричное (0x) или двоичное (0b) число."""
@@ -166,7 +196,7 @@ class Lexer:
 
         # Конвертируем строку в число с указанием системы счисления
         value = int(result_str, base)
-        return Token(TokenType.NUMBER, value, line, start_col)
+        return self.make_token(TokenType.NUMBER, value)
 
     def _tokenize(self):
         tokens = []

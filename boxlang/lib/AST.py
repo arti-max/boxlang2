@@ -173,3 +173,11 @@ class UnaryOpNode(ASTNode):
 class FloatLiteralNode(ASTNode):
     def __init__(self, value):
         self.value = value
+        
+class BreakNode(ASTNode):
+    """Узел для оператора break."""
+    pass
+
+class ContinueNode(ASTNode):
+    """Узел для оператора continue."""
+    pass

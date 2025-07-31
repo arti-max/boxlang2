@@ -18,13 +18,13 @@ def main():
     try:
         # 1. Preprocessing
         preprocessor = Preprocessor(base_dir=os.path.dirname(filepath))
-        processed_source = preprocessor.process_file(filepath)
+        processed_lines = preprocessor.process_file(filepath)
         library_code = preprocessor.get_library_code()
         print("--- Preprocessing completed ---")
 
         # 2. Initialize error handler, lexer, and parser
-        error_handler = ErrorHandler(processed_source, filename=filepath)
-        lexer = Lexer(processed_source)
+        error_handler = ErrorHandler(filename=filepath)
+        lexer = Lexer(processed_lines)
         parser = Parser(lexer, error_handler)
         
         # 3. Parsing

@@ -21,6 +21,8 @@ class TokenType(Enum):
     FOR = auto()         # for
     STRUCT = auto()      # struct
     FLOAT_LIT = auto()   # 3.14
+    BREAK = auto()       # break
+    CONTINUE = auto()    # continue
 
     # datatypes
     CHAR = auto()

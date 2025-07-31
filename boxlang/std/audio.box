@@ -1,0 +1,6 @@
+box pa[num32 volume, num32 chastota, num32 adsr] (
+kasmf["mov %eax {}", volume]
+kasmf["mov %esi {}", chastota]
+kasmf["mov %edx {}", adsr]
+kasm["int $23"]
+)

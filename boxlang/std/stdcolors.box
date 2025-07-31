@@ -1,0 +1,45 @@
+## stdcolors.box - Константы для стандартной 16-цветной палитры VGA/CGA
+
+## Структура для хранения кодов цветов
+struct Colors (
+    char BLACK
+    char BLUE
+    char GREEN
+    char CYAN
+    char RED
+    char BROWN
+    char LIGHT_GRAY
+    char DARK_GRAY
+    char LIGHT_BLUE
+    char LIGHT_GREEN
+    char LIGHT_CYAN
+    char LIGHT_RED
+    char MAGENTA
+    char PINK ## იგივეა რაც MAGENTA
+    char YELLOW
+    char WHITE
+)
+
+## Глобальная переменная для доступа к цветам
+Colors VGA_COLORS
+
+## Функция для инициализации цветов.
+## Её нужно будет один раз вызвать в начале программы, например, в _start.
+box init_vga_colors[] (
+    VGA_COLORS.BLACK : 0
+    VGA_COLORS.RED : 1
+    VGA_COLORS.GREEN : 2
+    VGA_COLORS.BROWN : 3
+    VGA_COLORS.BLUE : 4
+    VGA_COLORS.MAGENTA : 5
+    VGA_COLORS.CYAN : 6
+    VGA_COLORS.LIGHT_GRAY : 7
+    VGA_COLORS.DARK_GRAY : 8
+    VGA_COLORS.LIGHT_RED: 9
+    VGA_COLORS.LIGHT_GREEN : 10
+    VGA_COLORS.YELLOW : 11
+    VGA_COLORS.LIGHT_BLUE : 12
+    VGA_COLORS.PINK : 13
+    VGA_COLORS.LIGHT_CYAN : 14
+    VGA_COLORS.WHITE : 15
+)

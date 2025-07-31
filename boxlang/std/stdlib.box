@@ -228,10 +228,113 @@ box getchar[] (
     ret result
 )
 
-box confirm_exit[] (
-    open init_text_mode[]
+box confirm_exit[char inited_mode] (
+    if [inited_mode == 0] (
+        open init_text_mode[]
+    )
     open printf["Press any key to exit from this program..."]
     open screen_flush[]
     open getkey[]
     open exit[]
+)
+
+box strlen[char* str] (
+    num32 length : 0
+    while [@str != 0] (
+        length : length + 1
+        str : str + 1
+    )
+    ret length
+)
+
+##  ВСЁ ЧТО НИЖЕ КОД НЕЙРОНОК, Т.К. МНЕ БЫЛО В ПАДЛУ ПИСАТЬ КОД, Т.К. Я ЕГО ПИСАЛ ВЕСЬ ДЕНЬ
+
+## --- Вспомогательная функция: Integer to ASCII (itoa) ---
+## Преобразует число в строку и помещает ее в буфер.
+## Возвращает количество записанных символов.
+box _itoa[num32 value, char* buffer] (
+    char temp_buffer[12] ## Буфер для перевернутых цифр (макс. 11 цифр для num32 + знак)
+    num32 i : 0
+    num32 is_negative : 0
+
+    if [value == 0] (
+        buffer[0] : '0'
+        buffer[1] : 0
+        ret 1
+    )
+
+    if [value < 0] (
+        is_negative : 1
+        value : -value ## Работаем с положительным числом
+    )
+
+    ## Получаем цифры в обратном порядке
+    while [value != 0] (
+        num32 digit : value % 10
+        temp_buffer[i] : '0' + digit
+        value : value / 10
+        i : i + 1
+    )
+    
+    num32 out_index : 0
+    if [is_negative == 1] (
+        buffer[out_index] : '-'
+        out_index : out_index + 1
+    )
+
+    ## Переворачиваем цифры и записываем в итоговый буфер
+    while [i > 0] (
+        i : i - 1
+        buffer[out_index] : temp_buffer[i]
+        out_index : out_index + 1
+    )
+
+    buffer[out_index] : 0 ## Завершающий ноль
+    ret out_index
+)
+
+## --- Основная функция sprintf ---
+## Записывает форматированную строку в `dest_buffer`.
+box sprintf[char* dest_buffer, char* format_str, ...] (
+    char* char_ptr : format_str      ## Указатель на текущий символ в форматной строке
+    char* write_ptr : dest_buffer    ## Указатель на место для записи в буфере назначения
+    num32* arg_ptr : &format_str + 4  ## Указатель на текущий аргумент в стеке
+
+    while [@char_ptr != 0] (
+        if [@char_ptr == '%'] (
+            char_ptr : char_ptr + 1 ## Пропускаем '%'
+            
+            match[@char_ptr] (
+                case ['s'] ( ## Обработка строки
+                    char* str_arg : @arg_ptr
+                    while [@str_arg != 0] (
+                        @write_ptr : @str_arg
+                        write_ptr : write_ptr + 1
+                        str_arg : str_arg + 1
+                    )
+                    arg_ptr : arg_ptr + 4 ## Переходим к следующему аргументу
+                )
+                case ['i'] ( ## Обработка целого числа
+                    num32 int_arg : @arg_ptr
+                    ## Используем _itoa для преобразования числа в строку прямо в нашем буфере
+                    num32 written_chars : open _itoa[int_arg, write_ptr]
+                    write_ptr : write_ptr + written_chars ## Сдвигаем указатель на кол-во записанных символов
+                    arg_ptr : arg_ptr + 4
+                )
+                default ( ## Если формат неизвестен, просто печатаем его как есть
+                    @write_ptr : '%'
+                    write_ptr : write_ptr + 1
+                    @write_ptr : @char_ptr
+                    write_ptr : write_ptr + 1
+                )
+            )
+        ) else (
+            ## Если это не '%', просто копируем символ
+            @write_ptr : @char_ptr
+            write_ptr : write_ptr + 1
+        )
+        char_ptr : char_ptr + 1 ## Переходим к следующему символу в форматной строке
+    )
+
+    @write_ptr : 0 ## Ставим завершающий ноль в конце строки
 )

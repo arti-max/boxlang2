@@ -7,6 +7,7 @@ class Parser:
         self.lexer = lexer
         self.error_handler = error_handler
         self.current_token = self.lexer.get_next_token()
+        self.loop_level = 0
 
     def eat(self, token_type):
         if self.current_token.type == token_type:
@@ -58,6 +59,10 @@ class Parser:
         token_type = self.current_token.type
 
         # === ШАГ 1: Проверка на ключевые слова, начинающие инструкции ===
+        if self.current_token.type == TokenType.BREAK:
+            return self.break_statement()
+        if self.current_token.type == TokenType.CONTINUE:
+            return self.continue_statement()
         if token_type == TokenType.IF:
             return self.parse_if_statement()
         if token_type == TokenType.WHILE:
@@ -106,6 +111,24 @@ class Parser:
                 "This statement has no effect.", self.current_token)
 
         return left_node
+
+    def break_statement(self):
+        token = self.current_token
+        if self.loop_level == 0:
+            self.error_handler.raise_syntax_error(
+                "'break' can only be used inside a loop.", token
+            )
+        self.eat(TokenType.BREAK)
+        return AST.BreakNode()
+
+    def continue_statement(self):
+        token = self.current_token
+        if self.loop_level == 0:
+            self.error_handler.raise_syntax_error(
+                "'continue' can only be used inside a loop.", token
+            )
+        self.eat(TokenType.CONTINUE)
+        return AST.ContinueNode()
 
     def parse_if_statement(self):
         """
@@ -159,20 +182,20 @@ class Parser:
         while self.current_token.type in [TokenType.CASE, TokenType.DEFAULT]:
             if self.current_token.type == TokenType.CASE:
                 self.eat(TokenType.CASE)
-                
                 self.eat(TokenType.BRACKET_OPEN)
-                # В case пока поддерживаем только литералы (числа, символы)
-                value_node = self.parse_term() 
-                if not isinstance(value_node, (AST.NumberLiteralNode, AST.CharLiteralNode)):
-                    self.error_handler.raise_syntax_error(
-                        "Case value must be a number or char literal.", self.current_token
-                    )
-                self.eat(TokenType.BRACKET_CLOSE)
                 
+                # --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ---
+                # Теперь мы разрешаем любое выражение внутри case.
+                # Это может быть как литерал (5), так и переменная (my_var)
+                # или доступ к полю (SC.ARROW_DOWN).
+                value_node = self.parse_expression()
+                
+                # Старая проверка на литералы больше не нужна, убираем ее.
+                
+                self.eat(TokenType.BRACKET_CLOSE)
                 self.eat(TokenType.PAREN_OPEN)
                 body = self.parse_block()
                 self.eat(TokenType.PAREN_CLOSE)
-                
                 cases.append(AST.CaseNode(value_node, body, is_default=False))
 
             elif self.current_token.type == TokenType.DEFAULT:
@@ -201,10 +224,11 @@ class Parser:
         self.eat(TokenType.BRACKET_OPEN)
         condition_node = self.parse_expression()
         self.eat(TokenType.BRACKET_CLOSE)
-        
+        self.loop_level += 1
         self.eat(TokenType.PAREN_OPEN)
         body = self.parse_block()
         self.eat(TokenType.PAREN_CLOSE)
+        self.loop_level -= 1
         
         return AST.WhileNode(condition_node, body)
 
@@ -269,7 +293,7 @@ class Parser:
     
     def parse_comparison(self):
         """Парсит операции сравнения: ==, !=, <, >, <=, >="""
-        node = self.parse_additive()
+        node = self.parse_shift()
         op_types = [TokenType.EQ_EQ, TokenType.NOT_EQ, TokenType.LT, TokenType.GT, TokenType.LTE, TokenType.GTE]
         while self.current_token.type in op_types:
             op = self.current_token
@@ -606,10 +630,11 @@ class Parser:
         increment_node = self.parse_statement()
 
         self.eat(TokenType.BRACKET_CLOSE)
-        
+        self.loop_level += 1
         self.eat(TokenType.PAREN_OPEN)
         body = self.parse_block()
         self.eat(TokenType.PAREN_CLOSE)
+        self.loop_level -= 1
 
         return AST.ForNode(init_node, condition_node, increment_node, body)
     

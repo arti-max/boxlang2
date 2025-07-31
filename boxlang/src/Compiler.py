@@ -20,6 +20,7 @@ class Compiler:
         self.struct_definitions = {}
         self.current_function_name = None
         self.next_local_offset = 0
+        self.loop_stack = []
         
         # Новое: система типов и проверок
         self.function_signatures = {}  # Хранит сигнатуры функций
@@ -29,7 +30,6 @@ class Compiler:
         self.kasmf_reg_idx = 0
         
         self.float_counter = 0 # Счетчик для уникальных меток float-литералов
-        
         # Регистрируем встроенные функции
         self._register_builtin_functions()
 
@@ -208,10 +208,27 @@ class Compiler:
             return 'num32' # По умолчанию для неизвестных функций
         # <<< НОВОЕ: Добавляем правило для PropertyAccessNode >>>
         elif isinstance(expr_node, AST.PropertyAccessNode):
-            # На данный момент у нас есть только одно свойство - .length
+            # Это может быть доступ к свойству, например, array.length
             if expr_node.property_name == 'length':
-                # .length всегда возвращает число.
                 return 'num32'
+            
+            # Или это доступ к полю структуры, например, VGA_COLORS.BLUE
+            # Сначала определяем тип "владельца" (переменной слева от точки)
+            owner_name = expr_node.variable_name # В вашем AST здесь имя переменной
+            owner_info = self.get_var_info(owner_name)
+            
+            if owner_info:
+                struct_type_name = owner_info[0]
+                if struct_type_name in self.struct_definitions:
+                    struct_def = self.struct_definitions[struct_type_name]
+                    field_name = expr_node.property_name
+                    
+                    if field_name in struct_def['fields']:
+                        # Мы нашли поле! Возвращаем его тип.
+                        return struct_def['fields'][field_name]['type']
+
+            # Если не смогли определить, возвращаем 'unknown'
+            return 'unknown'
             
         elif isinstance(expr_node, AST.DereferenceNode):
             pointer_type = self.infer_expression_type(expr_node.pointer_node)
@@ -923,13 +940,14 @@ class Compiler:
         
     def visit_KasmfNode(self, node):
         """
-        Генерирует код для kasmf, изолируя побочные эффекты
-        вычисления аргументов с помощью стека.
+        Генерирует код для kasmf, используя безопасные временные регистры
+        (начиная с %e12), чтобы избежать конфликтов с системными вызовами.
         """
+        # ИСПРАВЛЕНИЕ 1: Список временных регистров теперь начинается с %e12
         temp_registers = [
-            "%e8", "%e9", "%e10", "%e11", "%e12", "%e13", "%e14", "%e15",
-            "%e16", "%e17", "%e18", "%e19", "%e20", "%e21", "%e22", "%e23",
-            "%e24", "%e25", "%e26", "%e27", "%e28", "%e29", "%e30", "%e31"
+            "%e12", "%e13", "%e14", "%e15", "%e16", "%e17", "%e18", "%e19",
+            "%e20", "%e21", "%e22", "%e23", "%e24", "%e25", "%e26", "%e27",
+            "%e28", "%e29", "%e30", "%e31"
         ]
         
         if len(node.args) > len(temp_registers):
@@ -942,16 +960,20 @@ class Compiler:
             # Вычисляем выражение аргумента, результат будет в %eax
             self.visit(arg_node)
             
-            # Сохраняем результат в безопасный временный регистр
-            reg_name = f"%e{8 + self.kasmf_reg_idx}"
-            self.kasmf_reg_idx = (self.kasmf_reg_idx + 1) % 24 # Циклично используем регистры e8-e31
+            # ИСПРАВЛЕНИЕ 2: Сохраняем результат в безопасный временный регистр,
+            # начиная с индекса 12.
+            reg_name = f"%e{12 + self.kasmf_reg_idx}"
+            
+            # ИСПРАВЛЕНИЕ 3: Обновляем счетчик, чтобы он циклично использовал 20 регистров (от %e12 до %e31).
+            self.kasmf_reg_idx = (self.kasmf_reg_idx + 1) % 20
+            
             self.kasm_code += f" mov {reg_name} %eax\n"
             arg_reg_names.append(reg_name)
             
         # Теперь .format() будет работать, так как format_string - это строка
         formatted_code = format_string.format(*arg_reg_names)
         self.kasm_code += f" {formatted_code}\n"
-        self.kasmf_reg_idx = 0 # Сбрасываем счетчик регистров
+        self.kasmf_reg_idx = 0 # Сбрасываем счетчик регистров для следующего вызова kasmf
 
     def visit_BinaryOperationNode(self, node):
         """Генерирует код для всех бинарных операций."""
@@ -1019,10 +1041,26 @@ class Compiler:
             # `div` помещает остаток в %edx
             self.kasm_code += " div %eax %ebx\n"
             self.kasm_code += " mov %eax %edx ; Remainder is in EDX\n"
-        elif op == '<<':
-            self.kasm_code += " sal %eax %ebx\n"
-        elif op == '>>':
-            self.kasm_code += " sar %eax %ebx\n"
+        elif op == '<<' or op == '>>':
+            kasm_inst = 'sal' if op == '<<' else 'sar'
+            
+            # Проверяем, является ли правый операнд (величина сдвига) константой
+            if isinstance(node.right, AST.NumberLiteralNode):
+                # Если да, то это самый простой и правильный случай.
+                # Вычисляем левую часть, результат будет в %eax.
+                self.visit(node.left)
+                shift_amount = node.right.value
+                # Генерируем правильную инструкцию "reg, imm"
+                self.kasm_code += f" {kasm_inst} %eax {shift_amount}\n"
+            else:
+                # Если величина сдвига - это переменная, то GovnoCore32
+                # не может выполнить такую операцию напрямую.
+                # Мы должны сообщить об этом пользователю.
+                self.error_handler.raise_syntax_error(
+                    f"Shift amount for operator '{op}' must be a constant integer literal.",
+                    node.op_token, # op_token был добавлен в AST.BinaryOperationNode ранее
+                    "The GovnoCore32 CPU does not support shifting by an amount stored in another register."
+                )
         elif op == '&':
             self.kasm_code += " and %eax %ebx\n"
         elif op == '|':
@@ -1145,29 +1183,24 @@ class Compiler:
         start_label = f".L_while_start_{self.label_counter}"
         end_label = f".L_while_end_{self.label_counter}"
         self.label_counter += 1
-
-        # 1. Метка начала цикла, к которой мы будем возвращаться
+        
+        # Помещаем метки на стек для break/continue
+        self.loop_stack.append((start_label, end_label))
+        
         self.kasm_code += f"{start_label}:\n"
-
-        # 2. Вычисляем условие. Результат (1 для истины, 0 для лжи) окажется в %eax
         self.visit(node.condition)
+        self.kasm_code += " cmp %eax 0\n"
+        self.kasm_code += f" je {end_label} ; Jump to end if condition is false\n"
         
-        # 3. Сравниваем результат с нулем, чтобы проверить, истинно ли условие
-        self.kasm_code += "        cmp %eax 0\n"
-        
-        # 4. Если условие ложно (результат равен 0), выходим из цикла
-        self.kasm_code += f"        je {end_label} ; Jump to end if condition is false\n"
-
-        # 5. Если условие было истинно, генерируем код для тела цикла
-        self.kasm_code += "        ; --- while-body ---\n"
+        self.kasm_code += " ; --- while-body ---\n"
         for statement in node.body:
             self.visit(statement)
-
-        # 6. В конце тела цикла делаем безусловный переход в начало для повторной проверки
-        self.kasm_code += f"        jmp {start_label}\n"
-
-        # 7. Метка конца цикла, куда мы переходим, когда условие становится ложным
+        
+        self.kasm_code += f" jmp {start_label}\n"
         self.kasm_code += f"{end_label}:\n"
+        
+        # Убираем метки со стека после выхода из цикла
+        self.loop_stack.pop()
         
     def visit_AddressOfNode(self, node):
         """Генерирует код для взятия адреса (&var) и помещает его в %eax."""
@@ -1222,31 +1255,37 @@ class Compiler:
             self.visit(node.init_node)
 
         start_label = f".L_for_start_{self.label_counter}"
+        increment_label = f".L_for_inc_{self.label_counter}" # Отдельная метка для инкремента
         end_label = f".L_for_end_{self.label_counter}"
         self.label_counter += 1
+        
+        # `continue` должен прыгать на инкремент, `break` - в конец.
+        self.loop_stack.append((increment_label, end_label))
 
-        # 2. Метка начала цикла
+        # 2. Метка начала цикла (проверка условия)
         self.kasm_code += f"{start_label}:\n"
-
-        # 3. Проверяем условие
         if node.condition_node:
             self.visit(node.condition_node)
-            self.kasm_code += "        cmp %eax 0\n"
-            self.kasm_code += f"        je {end_label}\n"
+            self.kasm_code += " cmp %eax 0\n"
+            self.kasm_code += f" je {end_label}\n"
 
-        # 4. Выполняем тело цикла
+        # 3. Выполняем тело цикла
         for statement in node.body:
             self.visit(statement)
-
-        # 5. Выполняем инкремент в конце каждой итерации
+            
+        # 4. Метка инкремента (сюда прыгает `continue`)
+        self.kasm_code += f"{increment_label}:\n"
         if node.increment_node:
             self.visit(node.increment_node)
 
-        # 6. Возвращаемся в начало для следующей проверки
-        self.kasm_code += f"        jmp {start_label}\n"
+        # 5. Возвращаемся в начало для следующей проверки
+        self.kasm_code += f" jmp {start_label}\n"
 
-        # 7. Метка конца цикла
+        # 6. Метка конца цикла (сюда прыгает `break`)
         self.kasm_code += f"{end_label}:\n"
+        
+        # Убираем метки со стека
+        self.loop_stack.pop()
         
     def visit_PropertyAccessNode(self, node):
         var_name = node.variable_name
@@ -1333,31 +1372,42 @@ class Compiler:
         # Используем инструкцию `ld` (load dword)
         self.kasm_code += f" mov %ebx {label}\n"
         self.kasm_code += f" ld %ebx %eax\n"
+        
+    def visit_BreakNode(self, node):
+        if not self.loop_stack:
+            # Парсер уже должен был поймать эту ошибку, но это дополнительная защита
+            self.error_handler.raise_syntax_error("Compiler Error: 'break' used outside of a loop.", node.token)
+        
+        # Берем метку конца цикла с вершины стека.
+        end_label = self.loop_stack[-1][1] 
+        self.kasm_code += f"    jmp {end_label}\n"
+
+    def visit_ContinueNode(self, node):
+        if not self.loop_stack:
+            self.error_handler.raise_syntax_error("Compiler Error: 'continue' used outside of a loop.", node.token)
+            
+        # Берем метку начала итерации (или инкремента для 'for').
+        start_or_increment_label = self.loop_stack[-1][0]
+        self.kasm_code += f"    jmp {start_or_increment_label}\n"
 
     def compile(self, ast_root, std_lib_code=""):
         declarations = ast_root.statements
         init_code = ""
 
         # --- ШАГ 1: ПРЕДВАРИТЕЛЬНЫЙ ПРОХОД ПО СТРУКТУРАМ ---
-        # Сначала мы должны найти и обработать все объявления 'struct'.
-        # Это необходимо, чтобы компилятор знал о существовании пользовательских типов
-        # до того, как начнет обрабатывать переменные или функции, которые их используют.
         struct_declarations = [n for n in declarations if isinstance(n, AST.StructDeclarationNode)]
         for struct_node in struct_declarations:
             self.visit(struct_node)
 
         # --- ШАГ 2: РАЗДЕЛЕНИЕ ОСТАЛЬНЫХ ДЕКЛАРАЦИЙ ---
-        # Теперь, когда структуры определены, мы можем разделить оставшиеся
-        # объявления верхнего уровня на функции и глобальные переменные.
         functions = [n for n in declarations if isinstance(n, AST.FunctionDeclarationNode)]
         global_vars = [n for n in declarations if isinstance(n, (AST.VariableDeclarationNode, AST.ArrayDeclarationNode))]
-
+        
         # --- ШАГ 3: ОБРАБОТКА ГЛОБАЛЬНЫХ ПЕРЕМЕННЫХ И МАССИВОВ ---
-        # Проходим по всем глобальным переменным и выделяем для них место в секции данных.
         for node in global_vars:
             var_label = f"__var_{node.name}"
             
-            # Определяем размер переменной. Он может быть базовым (num32) или размером структуры.
+            # Определяем размер
             if node.var_type in self.struct_definitions:
                 elem_size = self.struct_definitions[node.var_type]['size']
             else:
@@ -1370,41 +1420,74 @@ class Compiler:
                 self.global_variables[node.name] = ('array', var_label, elem_size)
                 self.data_section += f"{var_label}: reserve {total_size} bytes\n"
                 self.array_sizes[node.name] = node.size_node.value
-            
-            else: # Обычная переменная (включая экземпляры структур)
-                self.global_variables[node.name] = (node.var_type, var_label)
+                
+                # --- НОВЫЙ БЛОК: Генерируем код инициализации для глобальных массивов ---
+                if node.initial_value:
+                    if not isinstance(node.initial_value, AST.StringLiteralNode):
+                        raise TypeError("Global arrays can only be initialized with string literals.")
+
+                    segments = node.initial_value.segments
+                    initializer_len = sum(len(d) if s else 1 for s, d in segments)
+
+                    # 1. Помещаем строку-инициализатор в секцию данных
+                    str_label = f"__str_init_global_{self.string_counter}"
+                    self.string_counter += 1
+                    
+                    data_line = ""
+                    for is_string, data in segments:
+                        if is_string:
+                            safe_str = data.replace('"', '""')
+                            data_line += f'"{safe_str}" '
+                        else:
+                            data_line += f"${data:02X} "
+                    self.data_section += f'{str_label}: bytes {data_line} 0\n'
+
+                    # 2. Добавляем цикл memcpy в init_code
+                    init_code += f"\n;  Initializing global array '{node.name}'\n"
+                    init_code += f" mov %esi {var_label}\n"
+                    init_code += f" mov %egi {str_label}\n"
+                    init_code += f" mov %ecx {initializer_len}\n"
+                    
+                    copy_loop_label = f".L_memcpy_g_{self.label_counter}"
+                    self.label_counter += 1
+                    init_code += f"{copy_loop_label}:\n"
+                    init_code += " lb %egi %eax\n"
+                    init_code += " sb %esi %eax\n"
+                    init_code += f" lp {copy_loop_label}\n"
+
+            else: # Обычная переменная
+                self.global_variables[node.name] = (node.var_type, var_label, elem_size)
                 self.data_section += f"{var_label}: reserve {elem_size} bytes\n"
                 if node.initial_value:
-                    # Если есть инициализатор, генерируем код для него.
-                    # Этот код будет вставлен в начало функции _start.
+                    # Генерация кода для инициализации простых глобальных переменных
                     temp_compiler = Compiler(self.error_handler)
                     temp_compiler.global_variables = self.global_variables
                     assignment_node = AST.AssignmentNode(AST.VariableReferenceNode(node.name), node.initial_value)
                     temp_compiler.visit(assignment_node)
                     init_code += temp_compiler.kasm_code
-        
+                    
         # --- ШАГ 4: ВНЕДРЕНИЕ КОДА ИНИЦИАЛИЗАЦИИ В _start ---
-        # Если были глобальные переменные с инициализаторами,
-        # вставляем сгенерированный код в начало функции _start.
-        has_start = False
-        for func in functions:
-            if func.name == '_start':
-                has_start = True
-                if init_code:
-                    # Оборачиваем код в KasmNode и вставляем в самое начало тела функции
-                    func.body.insert(0, AST.KasmNode(init_code))
-                break
-        if not has_start and init_code:
-            raise SyntaxError("Global variable initializers require a '_start' function.")
+        if init_code:
+            start_func_found = False
+            for func in functions:
+                if func.name == '_start':
+                    start_func_found = True
+                    init_node = AST.KasmNode(f"\n; --- BEGIN Global Variable Initialization ---\n{init_code}; --- END Global Initialization ---\n")
+                    func.body.insert(0, init_node)
+                    break
+            if not start_func_found:
+                raise SyntaxError("Global variable initializers require a '_start' function.")
 
         # --- ШАГ 5: КОМПИЛЯЦИЯ ВСЕХ ФУНКЦИЙ ---
-        # Теперь, когда вся глобальная информация собрана, компилируем каждую функцию.
+        # Собираем сигнатуры перед компиляцией
+        for func_node in functions:
+            self.register_function_signature(func_node.name, func_node.params, None, func_node.is_variadic)
+        
+        # Компилируем каждую функцию
         for func_node in functions:
             self.visit(func_node)
         
         # --- ШАГ 6: СБОРКА ИТОГОВОГО ФАЙЛА ---
-        # Собираем все части вместе: переход на _start, код библиотек,
-        # скомпилированный код функций и секция данных.
         final_code = "jmp _start\n\n"
         final_code += std_lib_code + "\n"
         final_code += self.kasm_code
