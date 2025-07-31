@@ -1,0 +1,74 @@
+@incl <stdlib>
+
+box _start[] (
+    open init_text_mode[]
+    open clear_screen[0]
+
+    open printf["--- Float Feature Test Suite ---\n\n"]
+    
+    ## --- 1. Arithmetic Tests ---
+    open printf["1. Arithmetic Operations:\n"]
+    float f1 : 3.5
+    float f2 : 2.0
+    
+    ## Addition
+    float sum : f1 + f2  ## Expected: 5.5
+    open printf["  3.5 + 2.0 = %i (int part)\n", open to_int[sum]]
+    
+    ## Subtraction
+    float diff : f1 - f2 ## Expected: 1.5
+    open printf["  3.5 - 2.0 = %i (int part)\n", open to_int[diff]]
+
+    ## Multiplication
+    float prod : f1 * f2 ## Expected: 7.0
+    open printf["  3.5 * 2.0 = %i (int part)\n", open to_int[prod]]
+    
+    ## Division
+    float quot : 5.0 / f2 ## Expected: 2.5
+    open printf["  5.0 / 2.0 = %i (int part)\n", open to_int[quot]]
+    
+    ## --- 2. Comparison Tests ---
+    open printf["\n2. Comparison Operations:\n"]
+    float a : 10.5
+    float b : -10.5
+    float c : 10.5
+
+    ## Test >
+    if [a > b] ( open printf["  10.5 > -10.5 : OK\n"] ) else ( open printf["  10.5 > -10.5 : FAIL\n"] )
+    ## Test <
+    if [b < a] ( open printf["  -10.5 < 10.5 : OK\n"] ) else ( open printf["  -10.5 < 10.5 : FAIL\n"] )
+    ## Test ==
+    if [a == c] ( open printf["  10.5 == 10.5 : OK\n"] ) else ( open printf["  10.5 == 10.5 : FAIL\n"] )
+    ## Test !=
+    if [a != b] ( open printf["  10.5 != -10.5 : OK\n"] ) else ( open printf["  10.5 != -10.5 : FAIL\n"] )
+    ## Test <=
+    if [c <= a] ( open printf["  10.5 <= 10.5 : OK\n"] ) else ( open printf["  10.5 <= 10.5 : FAIL\n"] )
+    ## Test >=
+    if [a >= c] ( open printf["  10.5 >= 10.5 : OK\n"] ) else ( open printf["  10.5 >= 10.5 : FAIL\n"] )
+
+    ## --- 3. Type Conversion Tests ---
+    open printf["\n3. Type Conversion Operations:\n"]
+    num32 i1 : 20
+    float f3 : 3.14
+
+    ## Correct usage of to_float()
+    float converted_sum : open to_float[i1] + f3 ## 20.0 + 3.14 = 23.14
+    open printf["  to_float(20) + 3.14 = 23.14 (Check: %f)\n", converted_sum]
+    
+    ## Correct usage of to_int()
+    num32 int_val : open to_int[f3] ## Should be 3
+    open printf["  to_int(3.14) = %i\n", int_val]
+    
+    ## --- 4. Compiler Error Test (Implicit Conversion) ---
+    open printf["\n4. Testing for compilation error (should fail if uncommented):\n"]
+    
+    ## Раскомментируйте следующую строку, чтобы проверить, что компилятор
+    ## правильно выдает ошибку о недопустимом неявном преобразовании типов.
+    ## float bad_op_result : f3 + i1
+    
+    open printf["  (Test code is commented out to allow compilation)\n"]
+
+    open printf["\n--- All tests completed ---\n"]
+    open screen_flush[]
+    open trapf[]
+)
