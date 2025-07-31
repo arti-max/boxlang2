@@ -1,9 +1,8 @@
 @incl <stdscreen>
 
 
-box exit[num32 code] (
-    kasmf["psh {}", code]
-    kasm["int $00"]
+box exit[] (
+    kasm["hlt"]
 )
 
 box trapf[] (
@@ -88,6 +87,11 @@ box printf[char* str, ...] (
                 case ['c'] (
                     char character_to_print : @arg_ptr
                     open print_char[character_to_print]
+                    arg_ptr : arg_ptr + 4
+                )
+                case ['f'] (
+                    float value_to_print_float : @arg_ptr
+                    open print_float[value_to_print_float]
                     arg_ptr : arg_ptr + 4
                 )
                 default (
@@ -222,4 +226,12 @@ box getchar[] (
         result : extra[index]
     )
     ret result
+)
+
+box confirm_exit[] (
+    open init_text_mode[]
+    open printf["Press any key to exit from this program..."]
+    open screen_flush[]
+    open getkey[]
+    open exit[]
 )

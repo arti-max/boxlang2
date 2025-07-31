@@ -25,6 +25,18 @@ box init_text_mode[] (
     open init_standard_colors[]
 )
 
+box init_text_mode_beta[] (
+    @videomode_ptr : 3
+    text_ptr : 0x4F0000
+    buffer_length : 9600
+
+    cursor_x : 0
+    cursor_y : 0
+    open set_cursor_pos[0, 0]
+
+    open init_standard_colors[]
+)
+
 box set_auto_flush[char v] (
     auto_flush : v
 )
@@ -191,5 +203,20 @@ box print_num[num32 number] (
         i : i - 1
         open print_char[numbers[i]]
     )
+)
+
+box print_float[float number] (
+    if [number < 0.0] (
+        open print_char['-']
+        number : number * -1.0
+    )
+    num32 before_point : open to_int[number]
+    open print_num[before_point]
+    open print_char['.']
+    float after_point : number - open to_float[before_point]
+    after_point : after_point * 100000.0
+    num32 after_point_n32 : open to_int[after_point + 0.5]
+    open print_num[after_point_n32]
+
 )
 
