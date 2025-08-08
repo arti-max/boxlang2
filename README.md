@@ -305,10 +305,12 @@ float mana_cost : open to_float[health] * 0.1 ## mana_cost станет 10.0
 
 1. **Компиляция:** `python boxlang/main.py my_program.box my_program.asm`
     - Компилятор BoxLang читает ваш `.box` файл, обрабатывает `@incl` и превращает код в ассемблерный текст для `kasm`.
-2. **Ассемблирование:** `python kasm.py my_program.asm my_program.bin`
-    - Ассемблер `kasm` читает `.asm` файл и превращает текстовые инструкции в байткод — двоичный файл, который "понимает" процессор.
+2. **Ассемблирование:** `python boxlang/main.py my_program.box my_program.asm -kasm`
+    - Ассемблер `kasm` читает сгенерированный `.asm` файл и превращает текстовые инструкции в байткод — двоичный файл, который "понимает" процессор.
 3. **Запуск:** `gc32-20020 my_program.bin`
     - Эмулятор GovnoCore32-20020 загружает ваш `.bin` файл в память и начинает его выполнение.
+4. **Архитектура x86:** `python boxlang.main.py my_program.box my_program.asm -x86`
+    - Конвертер kasm в nasm читает сгенерированный kasm код, и на его основе создаёт nasm код в файле `.nasm.asm`, который затем нужно скомпилировать с помощью компилятора nasm
 
 <a name="examples"></a>
 
