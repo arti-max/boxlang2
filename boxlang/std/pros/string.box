@@ -1,0 +1,16 @@
+
+
+box init_string_api[] (
+    nasm["mov ah, 0x00"]
+    nasm["int 0x23"]
+)
+
+## 0x0D: Convert integer to string (AX = integer, returns AX = string)
+box num_to_str[num16 n] (
+    nasmf[
+        "mov ax, {0}"
+        "mov ah, 0x0D"
+        "int 0x23",
+        n
+    ]
+)

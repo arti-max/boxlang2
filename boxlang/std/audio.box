@@ -1,6 +1,8 @@
-box pa[num32 volume, num32 chastota, num32 adsr] (
-kasmf["mov %eax {}", volume]
-kasmf["mov %esi {}", chastota]
-kasmf["mov %edx {}", adsr]
-kasm["int $23"]
+box note[num32 volume, num32 frequency, num32 adsr, num32 channel] (
+    num32 volume_and_channel : channel << 4
+    volume_and_channel : volume_and_channel + volume
+    kasmf["mov %edx {0}", adsr] 
+    kasmf["mov %esi {0}", frequency] 
+    kasmf["mov %eax {0}", volume_and_channel] 
+    kasm["int $23"] 
 )

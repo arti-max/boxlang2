@@ -23,6 +23,9 @@ class TokenType(Enum):
     FLOAT_LIT = auto()   # 3.14
     BREAK = auto()       # break
     CONTINUE = auto()    # continue
+    NASM = auto()        # nasm["mov ax, 1"]
+    NASMF = auto()       # nasmf["mov ax, {}", var]
+    ENUM = auto()        # enum
 
     # datatypes
     CHAR = auto()

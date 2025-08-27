@@ -75,11 +75,6 @@ class KasmNode(ASTNode):
     def __init__(self, code_string):
         self.code_string = code_string
 
-class KasmfNode(ASTNode):
-    def __init__(self, format_string, args):
-        self.format_string = format_string
-        self.args = args
-        
 class ComparisonNode(ASTNode):
     """Узел для операций сравнения, например, a == b."""
     def __init__(self, left, op, right, op_token):
@@ -181,3 +176,59 @@ class BreakNode(ASTNode):
 class ContinueNode(ASTNode):
     """Узел для оператора continue."""
     pass
+
+class KasmfNode(ASTNode):
+    """Узел для inline assembly (kasmf v1 и v2)"""
+    def __init__(self, assembly_parts, output_constraints=None, input_constraints=None, clobber_list=None, args=None):
+        self.assembly_parts = assembly_parts
+        self.output_constraints = output_constraints or []
+        self.input_constraints = input_constraints or []
+        self.clobber_list = clobber_list or []
+        self.args = args or []  # Для v1
+        
+class MultilineKasmNode(ASTNode):
+    """Узел для многострочного kasm"""
+    def __init__(self, assembly_parts):
+        self.assembly_parts = assembly_parts
+
+class NasmNode(ASTNode):
+    """Узел для многострочного nasm"""
+    def __init__(self, assembly_parts):
+        self.assembly_parts = assembly_parts
+
+class NasmfNode(ASTNode):
+    """Узел для inline assembly nasm (nasmf v1 и v2)"""
+    def __init__(self, assembly_parts, output_constraints=None, input_constraints=None, clobber_list=None, args=None):
+        self.assembly_parts = assembly_parts
+        self.output_constraints = output_constraints or []
+        self.input_constraints = input_constraints or []
+        self.clobber_list = clobber_list or []
+        self.args = args or []  # Для v1
+
+class StructArrayAccessNode(ASTNode):
+    """Узел для доступа к элементу массива поля структуры: struct.field[index]"""
+    def __init__(self, struct_name, field_name, index_node):
+        self.struct_name = struct_name
+        self.field_name = field_name
+        self.index_node = index_node
+
+class ArrayElementPropertyAccessNode(ASTNode):
+    """Узел для доступа к полю элемента массива: array[index].field"""
+    def __init__(self, array_name, index_node, field_name):
+        self.array_name = array_name
+        self.index_node = index_node
+        self.field_name = field_name
+        
+class CompoundStatementNode(ASTNode):
+    """Узел для составных операций, разделенных точкой с запятой"""
+    def __init__(self, statements):
+        self.statements = statements  # Список операций
+        
+class EnumDeclarationNode(ASTNode):
+    """
+    Узел для объявления enum, например:
+    enum Color (RED : 1, GREEN : 2, BLUE : 3)
+    """
+    def __init__(self, name, values):
+        self.name = name  # Имя enum (строка, "Color")
+        self.values = values  # Список значений [(имя, значение), ...]

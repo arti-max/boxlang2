@@ -1,0 +1,41 @@
+@kasmf 1
+@incl <pros/colors>
+
+box init_text_mode[] (
+    open init_all_colors_structs[]
+    nasm["mov ah, 0x00"]
+    nasm["int 0x21"]
+)
+
+box clear_screen[] (
+    nasm["mov ah, 0x06"]
+    nasm["int 0x21"]
+)
+
+box print_newline[] (
+    nasm["mov ah, 0x05"]
+    nasm["int 0x21"]
+)
+
+box set_text_color[char color] (
+    nasmf[
+        "mov bx, {0}"
+        "mov ah, 0x07"
+        "int 0x21", 
+        color]
+)
+
+box print_string[char* s] (
+    nasmf[
+        "mov si, {0}"
+        "mov ah, 0x08"
+        "int 0x21",
+        s
+    ]
+)
+
+box print_white_string[char* s] (
+    nasmf["mov si, {0}", s]
+    nasm["mov ah, 0x01"]
+    nasm["int 0x21"]
+)

@@ -24,6 +24,9 @@ class Lexer:
             'struct': TokenType.STRUCT,
             'break': TokenType.BREAK,
             'continue': TokenType.CONTINUE,
+            'nasm': TokenType.NASM, 
+            'nasmf': TokenType.NASMF,
+            'enum': TokenType.ENUM,
         }
         
         # Сразу токенизируем весь код
@@ -158,13 +161,62 @@ class Lexer:
     
     def char_literal(self):
         start_col = self.column
-        self.advance() # '
-        if self.current_char is None: raise Exception("Unterminated char literal")
-        char_value = self.current_char
-        self.advance()
-        if self.current_char != "'": raise Exception("Unterminated char literal, expected closing '")
-        self.advance() # '
-        return self.make_token(TokenType.CHAR_LIT, ord(char_value))
+        self.advance() # Пропускаем открывающую '
+        
+        if self.current_char is None: 
+            raise Exception("Unterminated char literal")
+        
+        # Обрабатываем escape-последовательности
+        if self.current_char == '\\':
+            self.advance() # Пропускаем '\'
+            if self.current_char is None:
+                raise Exception("Unterminated char literal")
+                
+            # Обрабатываем стандартные escape-последовательности
+            escape_char = self.current_char
+            if escape_char == 'n':
+                char_value = ord('\n')
+            elif escape_char == 't':
+                char_value = ord('\t')
+            elif escape_char == 'r':
+                char_value = ord('\r')
+            elif escape_char == '0':
+                char_value = 0
+            elif escape_char == '\\':
+                char_value = ord('\\')
+            elif escape_char == "'":
+                char_value = ord("'")
+            elif escape_char == '"':
+                char_value = ord('"')
+            elif escape_char == 'x':
+                # Обработка hex escape \xHH
+                self.advance() # Пропускаем 'x'
+                if self.current_char is None:
+                    raise Exception("Invalid hex escape sequence in char literal")
+                h1 = self.current_char
+                self.advance()
+                if self.current_char is None:
+                    raise Exception("Invalid hex escape sequence in char literal")
+                h2 = self.current_char
+                try:
+                    char_value = int(h1 + h2, 16)
+                except ValueError:
+                    raise Exception(f"Invalid hex escape sequence: \\x{h1}{h2}")
+            else:
+                # Неизвестная escape-последовательность, используем символ как есть
+                char_value = ord(escape_char)
+            
+            self.advance()
+        else:
+            # Обычный символ
+            char_value = ord(self.current_char)
+            self.advance()
+        
+        if self.current_char != "'": 
+            raise Exception("Unterminated char literal, expected closing '")
+        
+        self.advance() # Пропускаем закрывающую '
+        return self.make_token(TokenType.CHAR_LIT, char_value)
     
     def hex_or_binary_number(self):
         """Парсит шестнадцатеричное (0x) или двоичное (0b) число."""

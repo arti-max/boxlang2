@@ -3,8 +3,49 @@ import struct
 from lib.TokenType import TokenType
 from lib import AST
 
+class ConstraintHandler:
+    """Класс для обработки constraints в стиле GCC"""
+    
+    def __init__(self, compiler):
+        self.compiler = compiler
+        self.available_regs = ['eax', 'ebx', 'ecx', 'edx', 'esi', 'egi', 'esp', 'ebp']
+        self.used_regs = set()
+    
+    def parse_constraint(self, constraint_str):
+        """Парсит строку constraint и возвращает информацию о типе"""
+        constraint_info = {
+            'is_output': constraint_str.startswith('='),
+            'type': 'register',  # по умолчанию
+            'modifier': None
+        }
+        
+        # Убираем '=' для output constraints
+        clean_constraint = constraint_str.lstrip('=')
+        
+        if 'r' in clean_constraint:
+            constraint_info['type'] = 'register'
+        elif 'm' in clean_constraint:
+            constraint_info['type'] = 'memory'
+        elif 'i' in clean_constraint:
+            constraint_info['type'] = 'immediate'
+        
+        return constraint_info
+    
+    def allocate_register(self, constraint_info):
+        """Выделяет регистр согласно constraint"""
+        if constraint_info['type'] == 'register':
+            for reg in self.available_regs:
+                if reg not in self.used_regs:
+                    self.used_regs.add(reg)
+                    return reg
+            
+            # Если свободных регистров нет, используем eax как fallback
+            return 'eax'
+        
+        return None
+
 class Compiler:
-    def __init__(self, error_handler):
+    def __init__(self, error_handler, target_bits=32):
         self.error_handler = error_handler
         self.kasm_code = ""
         self.data_section = ""
@@ -18,6 +59,7 @@ class Compiler:
         # <<< НОВОЕ: Хранилище для метаданных о структурах
         # Формат: { 'Player': {'size': 10, 'fields': {'x': {'offset': 0, 'type': 'num32'}, ...} } }
         self.struct_definitions = {}
+        self.enum_definitions = {}
         self.current_function_name = None
         self.next_local_offset = 0
         self.loop_stack = []
@@ -31,7 +73,14 @@ class Compiler:
         
         self.float_counter = 0 # Счетчик для уникальных меток float-литералов
         # Регистрируем встроенные функции
+        self.target_bits = target_bits
+        self.kasmf_version = 1
         self._register_builtin_functions()
+        
+    def set_kasmf_version(self, version: int):
+        """Устанавливает версию kasmf"""
+        self.kasmf_version = version
+        print(f"Compiler: Используется kasmf версии {version}")
 
     def _register_builtin_functions(self):
         """Регистрирует встроенные функции стандартной библиотеки"""
@@ -101,26 +150,43 @@ class Compiler:
             
     def _reassemble_string_from_segments(self, segments):
         """Собирает простую строку из сегментов, превращая байты в символы."""
-        # ### <-- ИЗМЕНЕНИЕ: Добавляем проверку типа ###
-        # Если нам пришла обычная строка, а не список сегментов, просто возвращаем ее.
+        # Если нам пришла обычная строка, просто возвращаем ее
         if isinstance(segments, str):
             return segments
 
-        # Если это список, обрабатываем его как и раньше.
-        result_string = ""
-        for is_string, data in segments:
-            if is_string:
-                result_string += data
-            else:
-                try:
-                    result_string += chr(data)
-                except ValueError:
-                    result_string += '?'
-        return result_string
+        # Если это список строк, объединяем их
+        if isinstance(segments, list) and all(isinstance(seg, str) for seg in segments):
+            return "".join(segments)
+
+        # Если это список кортежей (is_string, data), обрабатываем как раньше
+        if isinstance(segments, list):
+            result_string = ""
+            for item in segments:
+                if isinstance(item, tuple) and len(item) == 2:
+                    is_string, data = item
+                    if is_string:
+                        result_string += data
+                    else:
+                        try:
+                            result_string += chr(data)
+                        except ValueError:
+                            result_string += '?'
+                else:
+                    # Если это не кортеж, просто добавляем как строку
+                    result_string += str(item)
+            return result_string
+
+        # В остальных случаях просто возвращаем строковое представление
+        return str(segments)
 
     def get_element_size(self, type_name):
-        # Добавьте сюда тип указателя
-        return {'num32': 4, 'num16': 2, 'char': 1, 'float': 4, 'char*': 4, 'num32*': 4, 'num16*': 4}.get(type_name, 4) # <<< ИЗМЕНЕНИЕ
+        """### ИЗМЕНЕНИЕ: Размеры типов зависят от битности архитектуры"""
+        if self.target_bits == 32:
+            # Оригинальные размеры для 32-битной архитектуры
+            return {'num32': 4, 'num16': 2, 'char': 1, 'float': 4, 'char*': 4, 'num32*': 4, 'num16*': 4}.get(type_name, 4)
+        else:  # 16-битная архитектура
+            # Скорректированные размеры для 16-битной архитектуры
+            return {'num32': 4, 'num16': 2, 'char': 1, 'float': 4, 'char*': 2, 'num32*': 2, 'num16*': 2}.get(type_name, 2)
 
     def register_function_signature(self, name, params, return_type=None, is_variadic=False):
         """Регистрирует сигнатуру функции для проверки типов"""
@@ -170,7 +236,12 @@ class Compiler:
         elif isinstance(expr_node, AST.VariableReferenceNode):
             var_info = self.get_var_info(expr_node.name)
             if var_info:
-                return var_info[0]
+                var_type = var_info[0]
+                # Если это массив, возвращаем указатель на тип элемента
+                if var_type == 'array':
+                    element_type = self.get_array_element_type(expr_node.name)
+                    return f"{element_type}*"
+                return var_type
             return 'unknown'
         elif isinstance(expr_node, AST.ArrayAccessNode):
             var_info = self.get_var_info(expr_node.name)
@@ -274,6 +345,11 @@ class Compiler:
         if actual_type.endswith('*') and expected_type == 'num32':
             return True
         # ### ИЗМЕНЕНИЕ КОНЕЦ ###
+
+        # ### НОВОЕ: Разрешаем передавать массивы как указатели ###
+        # Массив совместим с указателем на тип элемента
+        if actual_type == 'array' and expected_type.endswith('*'):
+            return True
 
         # Упрощенная проверка совместимости указателей (любой указатель совместим с любым другим)
         if actual_type.endswith('*') and expected_type.endswith('*'):
@@ -510,10 +586,11 @@ class Compiler:
         
         # --- ШАГ 1: Обработка параметров функции ---
         # Параметры имеют положительное смещение от указателя базы стека (%ebp)
-        param_offset = 8
+        param_offset = 8 if self.target_bits == 32 else 4  # Базовое смещение от %ebp остается 8 (возвратный адрес + сохраненный %ebp)
+        param_size = 4 if self.target_bits == 32 else 2  # Размер параметра зависит от битности
         for param_type, param_name in node.params:
             self.scope_variables[param_name] = (param_type, param_offset)
-            param_offset += 4
+            param_offset += param_size  # ### ИЗМЕНЕНИЕ: +4 для 32-бит, +2 для 16-бит ###
 
         # --- ШАГ 2: Рекурсивный сбор всех локальных переменных ---
         # Используем существующий, но неиспользуемый метод для поиска во вложенных блоках
@@ -530,12 +607,11 @@ class Compiler:
                 local_vars_size += size
             elif isinstance(decl_node, AST.ArrayDeclarationNode):
                 if not isinstance(decl_node.size_node, AST.NumberLiteralNode):
-                    # На данный момент локальные массивы должны иметь постоянный размер
                     raise TypeError("Local array size must be a constant number")
                 element_size = self.get_element_size(decl_node.var_type)
                 array_size_bytes = decl_node.size_node.value * element_size
                 local_vars_size += array_size_bytes
-        
+            
         # --- ШАГ 4: Генерация пролога функции ---
         self.kasm_code += f"\n{self.current_function_name}:\n"
         self.kasm_code += "    psh %ebp\n"
@@ -574,19 +650,19 @@ class Compiler:
             self.visit(statement)
 
         # --- ШАГ 7: Генерация эпилога функции ---
-        if self.current_function_name != '_start':
-            self.kasm_code += f".L_ret_{self.current_function_name}:\n"
-            if not has_return:
-                self.kasm_code += "    mov %eax 0 ; Default return value\n"
-            
-            # Восстанавливаем стек и возвращаемся
-            self.kasm_code += "    mov %esp %ebp\n"
-            #self.kasm_code += "    sub %esp 1\n"
-            self.kasm_code += "    pop %ebp\n"
-            self.kasm_code += "    rts\n"
-        else:
+        # if self.current_function_name != '_start':
+        self.kasm_code += f".L_ret_{self.current_function_name}:\n"
+        if not has_return:
+            self.kasm_code += "    mov %eax 0 ; Default return value\n"
+        
+        # Восстанавливаем стек и возвращаемся
+        self.kasm_code += "    mov %esp %ebp\n"
+        #self.kasm_code += "    sub %esp 1\n"
+        self.kasm_code += "    pop %ebp\n"
+        self.kasm_code += "    rts\n"
+        # else:
              # Для _start просто завершаем программу
-             self.kasm_code += "    hlt ; Program end\n"
+            #  self.kasm_code += "    hlt ; Program end\n"
         
         self.current_function_name = None
         
@@ -652,7 +728,7 @@ class Compiler:
             # Для вариативных функций мы не можем надежно очистить стек здесь,
             # это должна делать сама вызываемая функция. Но для обычных - можем.
             if not self.function_signatures.get(node.name, {}).get('is_variadic', False):
-                 self.kasm_code += f" add %esp {num_args * 4}\n"
+                 self.kasm_code += f" add %esp {num_args * (4 if self.target_bits == 32 else 2)}\n"
 
     def visit_ArrayAccessNode(self, node):
         """Обрабатывает чтение значения из массива: `var = arr[i]`"""
@@ -931,49 +1007,186 @@ class Compiler:
         
     def visit_CharLiteralNode(self, node):
         self.kasm_code += f"    mov %eax {node.value}\n"
+        
+    def get_temp_register(self, index=0):
+        """Возвращает временный регистр в зависимости от целевой архитектуры"""
+        if self.target_bits == 16:
+            # Для 16-бит используем обычные регистры
+            regs_16bit = ['%esi', '%egi', '%ecx', '%edx']
+            return regs_16bit[index % len(regs_16bit)]
+        else:
+            # Для 32-бит используем виртуальные регистры как раньше
+            return f'%e{12 + index}'
+        
+    def visit_MultilineKasmNode(self, node):
+        """Обрабатывает многострочный kasm"""
+        for assembly_line in node.assembly_parts:
+            # Собираем строку из сегментов
+            if isinstance(assembly_line, list):
+                # Проверяем, является ли это списком строк
+                if all(isinstance(part, str) for part in assembly_line):
+                    code_string = "".join(assembly_line)
+                else:
+                    code_string = self._reassemble_string_from_segments(assembly_line)
+            else:
+                code_string = assembly_line
+            
+            self.kasm_code += f" {code_string}\n"
+    
+    def visit_KasmfNode(self, node):
+        """Обрабатывает kasmf inline assembly версии 1 и 2"""
+        
+        # Определяем версию по наличию constraints
+        if hasattr(node, 'output_constraints') and node.output_constraints:
+            return self._visit_kasmf_v2(node)
+        else:
+            return self._visit_kasmf_v1(node)
+    
+    def _visit_kasmf_v1(self, node):
+        """Обрабатывает старую версию kasmf (простая подстановка)"""
+        
+        # Объединяем все части шаблона
+        template = ""
+        for part in node.assembly_parts:
+            if isinstance(part, list):
+                template += self._reassemble_string_from_segments(part)
+            else:
+                template += part
+            template += "\n"
+        
+        # Простая подстановка аргументов как раньше
+        if node.args:
+            arg_values = []
+            for arg in node.args:
+                self.visit(arg)
+                arg_values.append("%eax")  # ИСПРАВЛЕНИЕ: добавляем префикс %
+                self.kasm_code += " psh %eax ; Save kasmf argument\n"
+            
+            # Подставляем аргументы
+            for i, arg_val in enumerate(arg_values):
+                template = template.replace(f"{{{i}}}", arg_val)
+            
+            # Восстанавливаем аргументы в обратном порядке
+            for _ in reversed(arg_values):
+                self.kasm_code += " pop %eax ; Restore kasmf argument\n"
+        
+        self.kasm_code += template
+    
+    def _visit_kasmf_v2(self, node):
+        """Обрабатывает новую версию kasmf с constraints"""
+        
+        constraint_handler = ConstraintHandler(self)
+        reg_assignments = {}  # Маппинг переменных на регистры
+        saved_regs = []       # Список сохраненных регистров
+        
+        # Объединяем шаблон
+        template = ""
+        for part in node.assembly_parts:
+            if isinstance(part, list):
+                template += self._reassemble_string_from_segments(part)
+            else:
+                template += part
+            template += "\n"
+        
+        self.kasm_code += " ; === kasmf v2 inline assembly start ===\n"
+        
+        # 1. Сохраняем регистры, которые будут замусорены (clobber list)
+        all_clobbered = set(node.clobber_list)
+        
+        # Добавляем регистры из constraints к clobbered
+        for constraint_str, _ in node.output_constraints + node.input_constraints:
+            constraint_info = constraint_handler.parse_constraint(constraint_str)
+            if constraint_info['type'] == 'register':
+                reg = constraint_handler.allocate_register(constraint_info)
+                if reg:
+                    all_clobbered.add(reg)
+        
+        # Сохраняем clobbered регистры (с префиксом %)
+        for reg in all_clobbered:
+            if reg in ['eax', 'ebx', 'ecx', 'edx', 'esi', 'egi']:  # Не сохраняем esp, ebp
+                self.kasm_code += f" psh %{reg} ; Save clobbered register\n"
+                saved_regs.append(reg)
+        
+        # 2. Обрабатываем input constraints - загружаем значения в регистры
+        input_reg_map = {}
+        for i, (constraint_str, variable_expr) in enumerate(node.input_constraints):
+            constraint_info = constraint_handler.parse_constraint(constraint_str)
+            
+            if constraint_info['type'] == 'register':
+                # Выделяем регистр для этого input
+                reg = constraint_handler.allocate_register(constraint_info)
+                input_reg_map[i] = f"%{reg}"  # ИСПРАВЛЕНИЕ: добавляем префикс %
+                
+                # Вычисляем значение переменной и загружаем в регистр
+                self.visit(variable_expr)
+                if reg != 'eax':
+                    self.kasm_code += f" mov %{reg} %eax ; Load input constraint {i}\n"
+            
+            elif constraint_info['type'] == 'memory':
+                # Для memory constraints вычисляем адрес
+                if isinstance(variable_expr, AST.VariableReferenceNode):
+                    var_info = self.get_var_info(variable_expr.name)
+                    if var_info:
+                        _, location, _ = var_info
+                        if isinstance(location, int):  # Локальная переменная
+                            # Вычисляем адрес и помещаем в регистр
+                            temp_reg = constraint_handler.allocate_register({'type': 'register'})
+                            self.kasm_code += f" mov %{temp_reg} %ebp\n"
+                            if location > 0:
+                                self.kasm_code += f" add %{temp_reg} {location}\n"
+                            else:
+                                self.kasm_code += f" sub %{temp_reg} {-location}\n"
+                            input_reg_map[i] = f"%{temp_reg}"
+                        else:  # Глобальная
+                            temp_reg = constraint_handler.allocate_register({'type': 'register'})
+                            self.kasm_code += f" mov %{temp_reg} {location}\n"
+                            input_reg_map[i] = f"%{temp_reg}"
+        
+        # 3. Подставляем input constraints в шаблон ({0}, {1}, etc.)
+        for i, reg_or_mem in input_reg_map.items():
+            template = template.replace(f"{{{i}}}", reg_or_mem)
+        
+        # 4. Вставляем основной asm код
+        self.kasm_code += template
+        
+        # 5. Обрабатываем output constraints - сохраняем результаты
+        for i, (constraint_str, variable_expr) in enumerate(node.output_constraints):
+            constraint_info = constraint_handler.parse_constraint(constraint_str)
+            
+            if constraint_info['type'] == 'register':
+                # Результат должен быть в регистре, сохраняем в переменную
+                reg = constraint_handler.allocate_register(constraint_info)
+                
+                if isinstance(variable_expr, AST.VariableReferenceNode):
+                    var_info = self.get_var_info(variable_expr.name)
+                    if var_info:
+                        var_type, location, _ = var_info
+                        element_size = self.get_element_size(var_type)
+                        
+                        if isinstance(location, int):  # Локальная переменная
+                            self.kasm_code += f" mov %ebx %ebp\n"
+                            if location > 0:
+                                self.kasm_code += f" add %ebx {location}\n"
+                            else:
+                                self.kasm_code += f" sub %ebx {-location}\n"
+                        else:  # Глобальная
+                            self.kasm_code += f" mov %ebx {location}\n"
+                        
+                        # Сохраняем значение из регистра (с префиксом %)
+                        op = {4: 'sd', 2: 'sw', 1: 'sb'}.get(element_size, 'sd')
+                        self.kasm_code += f" {op} %ebx %{reg} ; Store output constraint {i}\n"
+        
+        # 6. Восстанавливаем сохраненные регистры в обратном порядке (с префиксом %)
+        for reg in reversed(saved_regs):
+            self.kasm_code += f" pop %{reg} ; Restore clobbered register\n"
+        
+        self.kasm_code += " ; === kasmf v2 inline assembly end ===\n"
     
     def visit_KasmNode(self, node):
         # ### <-- ИЗМЕНЕНИЕ: Исправляем обработку KASM ###
         # Теперь node.code_string это список сегментов. Собираем его.
         code_string = self._reassemble_string_from_segments(node.code_string)
         self.kasm_code += f" {code_string}\n"
-        
-    def visit_KasmfNode(self, node):
-        """
-        Генерирует код для kasmf, используя безопасные временные регистры
-        (начиная с %e12), чтобы избежать конфликтов с системными вызовами.
-        """
-        # ИСПРАВЛЕНИЕ 1: Список временных регистров теперь начинается с %e12
-        temp_registers = [
-            "%e12", "%e13", "%e14", "%e15", "%e16", "%e17", "%e18", "%e19",
-            "%e20", "%e21", "%e22", "%e23", "%e24", "%e25", "%e26", "%e27",
-            "%e28", "%e29", "%e30", "%e31"
-        ]
-        
-        if len(node.args) > len(temp_registers):
-            raise ValueError(f"Too many arguments for kasmf, max supported is {len(temp_registers)}")
-
-        format_string = self._reassemble_string_from_segments(node.format_string)
-        
-        arg_reg_names = []
-        for arg_node in node.args:
-            # Вычисляем выражение аргумента, результат будет в %eax
-            self.visit(arg_node)
-            
-            # ИСПРАВЛЕНИЕ 2: Сохраняем результат в безопасный временный регистр,
-            # начиная с индекса 12.
-            reg_name = f"%e{12 + self.kasmf_reg_idx}"
-            
-            # ИСПРАВЛЕНИЕ 3: Обновляем счетчик, чтобы он циклично использовал 20 регистров (от %e12 до %e31).
-            self.kasmf_reg_idx = (self.kasmf_reg_idx + 1) % 20
-            
-            self.kasm_code += f" mov {reg_name} %eax\n"
-            arg_reg_names.append(reg_name)
-            
-        # Теперь .format() будет работать, так как format_string - это строка
-        formatted_code = format_string.format(*arg_reg_names)
-        self.kasm_code += f" {formatted_code}\n"
-        self.kasmf_reg_idx = 0 # Сбрасываем счетчик регистров для следующего вызова kasmf
 
     def visit_BinaryOperationNode(self, node):
         """Генерирует код для всех бинарных операций."""
@@ -1041,26 +1254,58 @@ class Compiler:
             # `div` помещает остаток в %edx
             self.kasm_code += " div %eax %ebx\n"
             self.kasm_code += " mov %eax %edx ; Remainder is in EDX\n"
-        elif op == '<<' or op == '>>':
-            kasm_inst = 'sal' if op == '<<' else 'sar'
-            
-            # Проверяем, является ли правый операнд (величина сдвига) константой
+        elif op == '<<':
+            # Сдвиг влево: для GC32 совместимости используем только immediate значения
             if isinstance(node.right, AST.NumberLiteralNode):
-                # Если да, то это самый простой и правильный случай.
-                # Вычисляем левую часть, результат будет в %eax.
-                self.visit(node.left)
+                # Если правый операнд - константа, можем использовать напрямую
                 shift_amount = node.right.value
-                # Генерируем правильную инструкцию "reg, imm"
-                self.kasm_code += f" {kasm_inst} %eax {shift_amount}\n"
+                self.kasm_code += f" sal %eax {shift_amount}\n"
             else:
-                # Если величина сдвига - это переменная, то GovnoCore32
-                # не может выполнить такую операцию напрямую.
-                # Мы должны сообщить об этом пользователю.
-                self.error_handler.raise_syntax_error(
-                    f"Shift amount for operator '{op}' must be a constant integer literal.",
-                    node.op_token, # op_token был добавлен в AST.BinaryOperationNode ранее
-                    "The GovnoCore32 CPU does not support shifting by an amount stored in another register."
-                )
+                # Если правый операнд - переменная, эмулируем через цикл
+                self.visit(node.right)  # Количество сдвигов в %eax
+                self.kasm_code += " psh %eax ; Save right operand\n"
+                self.visit(node.left)   # Левый операнд в %eax
+                self.kasm_code += " pop %ebx ; Restore shift count\n"
+                
+                # Эмулируем сдвиг через цикл
+                loop_label = f".L_shift_left_{self.label_counter}"
+                end_label = f".L_shift_left_end_{self.label_counter}"
+                self.label_counter += 1
+                
+                self.kasm_code += " cmp %ebx 0\n"
+                self.kasm_code += f" je {end_label}\n"
+                self.kasm_code += f"{loop_label}:\n"
+                self.kasm_code += " sal %eax 1 ; Shift left by 1\n"
+                self.kasm_code += " dex %ebx\n"
+                self.kasm_code += " cmp %ebx 0\n"
+                self.kasm_code += f" jne {loop_label}\n"
+                self.kasm_code += f"{end_label}:\n"
+        elif op == '>>':
+            # Сдвиг вправо: аналогично левому сдвигу
+            if isinstance(node.right, AST.NumberLiteralNode):
+                # Если правый операнд - константа
+                shift_amount = node.right.value
+                self.kasm_code += f" sar %eax {shift_amount}\n"
+            else:
+                # Если правый операнд - переменная, эмулируем через цикл
+                self.visit(node.right)  # Количество сдвигов в %eax
+                self.kasm_code += " psh %eax ; Save right operand\n"
+                self.visit(node.left)   # Левый операнд в %eax
+                self.kasm_code += " pop %ebx ; Restore shift count\n"
+                
+                # Эмулируем сдвиг через цикл
+                loop_label = f".L_shift_right_{self.label_counter}"
+                end_label = f".L_shift_right_end_{self.label_counter}"
+                self.label_counter += 1
+            
+                self.kasm_code += " cmp %ebx 0\n"
+                self.kasm_code += f" je {end_label}\n"
+                self.kasm_code += f"{loop_label}:\n"
+                self.kasm_code += " sar %eax 1 ; Shift right by 1\n"
+                self.kasm_code += " dex %ebx\n"
+                self.kasm_code += " cmp %ebx 0\n"
+                self.kasm_code += f" jne {loop_label}\n"
+                self.kasm_code += f"{end_label}:\n"
         elif op == '&':
             self.kasm_code += " and %eax %ebx\n"
         elif op == '|':
@@ -1288,40 +1533,48 @@ class Compiler:
         self.loop_stack.pop()
         
     def visit_PropertyAccessNode(self, node):
-        var_name = node.variable_name
+        """Обрабатывает доступ к свойству: enum.MEMBER, struct.field или array.length."""
+        owner_name = node.variable_name
         prop_name = node.property_name
 
-        # Проверяем, не является ли это доступом к полю структуры
-        var_info = self.get_var_info(var_name)
-        if var_info and var_info[0] in self.struct_definitions:
-            # Это доступ к полю структуры, например, 'player.x'
-            struct_type = var_info[0]
-            struct_def = self.struct_definitions[struct_type]
-            if prop_name not in struct_def['fields']:
-                raise NameError(f"Struct '{struct_type}' has no field named '{prop_name}'.")
-            
-            field_info = struct_def['fields'][prop_name]
-            field_size = field_info['size']
+        # --- ПРОВЕРКА НА ENUM ---
+        if owner_name in self.enum_definitions:
+            enum_def = self.enum_definitions[owner_name]
+            if prop_name in enum_def:
+                # Это член enum! Просто загружаем его значение.
+                value = enum_def[prop_name]
+                self.visit(AST.NumberLiteralNode(value))
+                return
+            else:
+                raise NameError(f"Enum '{owner_name}' has no member named '{prop_name}'.")
 
-            # 1. Вычисляем адрес поля и кладем его в %ebx
-            self._get_field_address(AST.VariableReferenceNode(var_name), prop_name)
-            
-            # 2. Загружаем значение по этому адресу в %eax
-            op = {4: 'ld', 2: 'lw', 1: 'lb'}.get(field_size, 'ld')
-            if field_size != 4: self.kasm_code += "    mov %eax 0\n"
-            self.kasm_code += f"    {op} %ebx %eax ; Load value of field '{prop_name}'\n"
-            
-            return # Завершаем выполнение
-        
-        # Если это не структура, то это, возможно, array.length
-        if prop_name == "length":
-            if var_name not in self.array_sizes:
-                raise NameError(f"Cannot get .length of '{var_name}', as it is not a known array or struct.")
-            
-            array_length = self.array_sizes[var_name]
-            self.kasm_code += f"    mov %eax {array_length} ; .length of {var_name}\n"
-        else:
-            raise NameError(f"Unknown property '{prop_name}' for variable '{var_name}'.")
+        # --- ПРОВЕРКА НА array.length ---
+        if prop_name == 'length':
+            if owner_name in self.array_sizes:
+                size = self.array_sizes[owner_name]
+                self.visit(AST.NumberLiteralNode(size))
+                return
+            else:
+                raise NameError(f"Cannot get length of '{owner_name}', size is unknown or it's not an array.")
+
+        # --- ЛОГИКА ДЛЯ СТРУКТУР (остается без изменений) ---
+        owner_info = self.get_var_info(owner_name)
+        if owner_info:
+            struct_type_name = owner_info[0]
+            if struct_type_name in self.struct_definitions:
+                struct_def = self.struct_definitions[struct_type_name]
+                if prop_name in struct_def['fields']:
+                    # Мы нашли поле! Вычисляем адрес поля и загружаем значение.
+                    self._get_field_address(AST.VariableReferenceNode(owner_name), prop_name) # Адрес в %ebx
+                    field_info = struct_def['fields'][prop_name]
+                    size = field_info['size']
+                    op = {4: 'ld', 2: 'lw', 1: 'lb'}.get(size, 'ld')
+                    if size != 4: self.kasm_code += " mov %eax 0\n"
+                    self.kasm_code += f" {op} %ebx %eax ; Load value from field '{prop_name}'\n"
+                    return
+
+        # Если ничего не подошло
+        raise NameError(f"Cannot resolve property '{prop_name}' on '{owner_name}'. Not a known enum, struct field, or array.")
         
     def visit_StructDeclarationNode(self, node):
         """Собирает метаданные о структуре: её размер и смещения полей."""
@@ -1389,6 +1642,22 @@ class Compiler:
         # Берем метку начала итерации (или инкремента для 'for').
         start_or_increment_label = self.loop_stack[-1][0]
         self.kasm_code += f"    jmp {start_or_increment_label}\n"
+        
+    def visit_CompoundStatementNode(self, node):
+        """Генерирует код для составных операций"""
+        for statement in node.statements:
+            self.visit(statement)
+            
+    def visit_EnumDeclarationNode(self, node):
+        """Обрабатывает объявление enum и сохраняет его значения."""
+        if node.name in self.enum_definitions:
+            # Можно добавить обработку ошибки, если enum уже объявлен
+            return
+
+        self.enum_definitions[node.name] = {}
+        for name, value in node.values:
+            self.enum_definitions[node.name][name] = value
+        print(f"Compiler: Registered enum '{node.name}' with {len(node.values)} members.")
 
     def compile(self, ast_root, std_lib_code=""):
         declarations = ast_root.statements
@@ -1398,6 +1667,10 @@ class Compiler:
         struct_declarations = [n for n in declarations if isinstance(n, AST.StructDeclarationNode)]
         for struct_node in struct_declarations:
             self.visit(struct_node)
+            
+        enum_declarations = [n for n in declarations if isinstance(n, AST.EnumDeclarationNode)]
+        for enum_node in enum_declarations:
+            self.visit(enum_node)
 
         # --- ШАГ 2: РАЗДЕЛЕНИЕ ОСТАЛЬНЫХ ДЕКЛАРАЦИЙ ---
         functions = [n for n in declarations if isinstance(n, AST.FunctionDeclarationNode)]

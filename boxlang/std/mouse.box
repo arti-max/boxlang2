@@ -1,0 +1,112 @@
+num16* coord_ptr : 0x480000
+char* buttons_ptr : 0x480004
+
+## --- Маски для побитовых операций с кнопками ---
+## Эти константы используются в ассемблерном коде.
+char MOUSE_LEFT_BUTTON   : 2  ## Бит 1
+char MOUSE_MIDDLE_BUTTON : 4  ## Бит 2
+char MOUSE_RIGHT_BUTTON  : 8  ## Бит 3
+
+box get_mouse_x[] (
+    ret @coord_ptr
+)
+
+box get_mouse_y[] (
+    num16* coord_y_ptr : 0x480002
+    ret @coord_y_ptr
+)
+
+box is_left_button_pressed[] (
+    char result : 0 ## По умолчанию считаем, что кнопка не нажата
+
+    ## Читаем байт состояния кнопок (0x480004) в регистр %eax
+    kasm["mov %e10 $480004"]
+    kasm["lb %e10 %eax"]
+    ## Выполняем побитовое И с маской для левой кнопки (2)
+    kasm["and %eax 2"]
+    ## Если результат НЕ равен нулю, значит, бит был установлен (кнопка нажата).
+    ## В этом случае прыгаем на метку, где установим result в 1.
+    kasm["cmp %eax 0"]
+    kasm["jne .L_left_pressed"]
+    
+    ## Если мы здесь, значит, кнопка не нажата. Прыгаем в конец.
+    kasm["jmp .L_left_end"]
+
+    ## Метка, на которую мы переходим, если кнопка нажата.
+    kasm[".L_left_pressed:"]
+    ## Записываем 1 в нашу переменную result.
+    kasmf["mov %e11 1"]
+    kasmf["sb {} %e11", &result] ## Используем 'sb' (store byte), так как result - это char
+
+    kasm[".L_left_end:"]
+    ret result
+)
+
+box is_right_button_pressed[] (
+    char result : 0
+
+    kasm["mov %e10 $480004"]
+    kasm["lb %e10 %eax"]
+    kasm["and %eax 8"] ## Маска для правой кнопки - 8
+    kasm["cmp %eax 0"]
+    kasm["jne .L_right_pressed"]
+    kasm["jmp .L_right_end"]
+
+    kasm[".L_right_pressed:"]
+    kasmf["mov %e11 1"]
+    kasmf["sb {} %e11", &result]
+    
+    kasm[".L_right_end:"]
+    ret result
+)
+
+box is_middle_button_pressed[] (
+    char result : 0
+
+    kasm["mov %e10 $480004"]
+    kasm["lb %e10 %eax"]
+    kasm["and %eax 4"] ## Маска для средней кнопки - 4
+    kasm["cmp %eax 0"]
+    kasm["jne .L_middle_pressed"]
+    kasm["jmp .L_middle_end"]
+
+    kasm[".L_middle_pressed:"]
+    kasmf["mov %e11 1"]
+    kasmf["sb {} %e11", &result]
+
+    kasm[".L_middle_end:"]
+    ret result
+)
+
+## ============================================================
+##  Функции для проверки состояния колесика
+## ============================================================
+## Примечание: состояние колесика кратковременно. 
+## Его нужно проверять в каждом кадре и сбрасывать.
+
+box is_scrolled_up[] (
+    ## Прокрутка вверх записывает в байт значение 1.
+    if [@buttons_ptr == 1] (
+        ret 1
+    )
+    ret 0
+)
+
+box is_scrolled_down[] (
+    ## Прокрутка вниз записывает -1, что в беззнаковом char читается как 255.
+    if [@buttons_ptr == 255] (
+        ret 1
+    )
+    ret 0
+)
+
+box reset_scroll_state[] (
+    ## Эмулятор сам сбрасывает состояние прокрутки в начале каждого кадра.
+    ## Но если мы хотим быть уверены, что не обработаем одно событие дважды,
+    ## мы можем сбросить его вручную, записав 0. Это не повлияет на кнопки,
+    ## так как их состояние будет немедленно восстановлено эмулятором.
+    kasm["mov %e10 $480004"]
+    kasm["mov %eax $00"]
+    kasm["sb %e10 %eax"]
+)
+

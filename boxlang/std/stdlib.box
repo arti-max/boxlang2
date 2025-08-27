@@ -1,3 +1,4 @@
+@kasmf 1
 @incl <stdscreen>
 
 
@@ -12,7 +13,7 @@ box trapf[] (
 box rand[] (
     num32 result : 0
     kasm["int $21"]
-    kasmf["sd {} %edx", &result]
+    kasmf["sd {0} %edx", &result]
     ret result
 )
 
@@ -107,7 +108,7 @@ box printf[char* str, ...] (
 )
 
 box sleep[num32 ms] (
-    kasmf["mov %edx {}", ms]
+    kasmf["mov %edx {0}", ms]
     kasm["int $22"]
 )
 
@@ -245,6 +246,19 @@ box strlen[char* str] (
         str : str + 1
     )
     ret length
+)
+
+box strcmp[char* s1, char* s2] (
+    while[@s1 == @s2] (
+        if [@s1 == 0] (
+            ret 0
+        )
+    )
+    ret 1
+)
+
+box strcpy[char* s1, char* s2] (
+    
 )
 
 ##  ВСЁ ЧТО НИЖЕ КОД НЕЙРОНОК, Т.К. МНЕ БЫЛО В ПАДЛУ ПИСАТЬ КОД, Т.К. Я ЕГО ПИСАЛ ВЕСЬ ДЕНЬ

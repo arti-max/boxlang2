@@ -29,39 +29,59 @@ class Parser:
             
         return statements
     
+    def _reassemble_string_from_segments(self, segments):
+        """Собирает простую строку из сегментов (аналогично методу в Compiler.py)"""
+        if isinstance(segments, str):
+            return segments
+        
+        result_string = ""
+        for is_string, data in segments:
+            if is_string:
+                result_string += data
+            else:
+                try:
+                    result_string += chr(data)
+                except ValueError:
+                    result_string += '?'
+        return result_string
+    
     def parse_type(self):
         """
-        Парсит объявление типа и, возможно, следующий за ним '*' для указателей.
-        Возвращает строку типа, например 'num32' или 'num32*'.
+        Парсит объявление типа, включая пользовательские типы структур.
+        Возвращает строку типа, например 'num32', 'Inst' или 'num32*'.
         """
         base_type_tokens = [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]
         
-        if self.current_token.type not in base_type_tokens:
-             self.error_handler.raise_syntax_error("Expected a data type (e.g., num32, char)", self.current_token)
+        # НОВОЕ: Поддержка пользовательских типов (структур)
+        if self.current_token.type == TokenType.IDENT:
+            # Это может быть имя структуры
+            base_type_name = self.current_token.value
+            self.eat(TokenType.IDENT)
+        elif self.current_token.type in base_type_tokens:
+            # Примитивный тип
+            base_type_name = self.current_token.value
+            self.eat(self.current_token.type)
+        else:
+            self.error_handler.raise_syntax_error(
+                "Expected a data type (e.g., num32, char) or struct name", 
+                self.current_token
+            )
 
-        base_type_name = self.current_token.value
-        self.eat(self.current_token.type)
-        
         # Проверяем, является ли это указателем
         if self.current_token.type == TokenType.MULTIPLY:
             self.eat(TokenType.MULTIPLY)
-            # Возвращаем строку 'тип*'
             return f"{base_type_name}*"
         
         return base_type_name
     
-
-    def parse_statement(self):
-        """
-        Парсит одну инструкцию.
-        Это ключевой метод-диспетчер, который определяет тип инструкции.
-        """
+    def parse_single_statement(self):
+        """Парсит одну операцию (переименованный старый parse_statement)"""
         token_type = self.current_token.type
 
-        # === ШАГ 1: Проверка на ключевые слова, начинающие инструкции ===
-        if self.current_token.type == TokenType.BREAK:
+        # === ШАГ 1: Проверка на ключевые слова ===
+        if token_type == TokenType.BREAK:
             return self.break_statement()
-        if self.current_token.type == TokenType.CONTINUE:
+        if token_type == TokenType.CONTINUE:
             return self.continue_statement()
         if token_type == TokenType.IF:
             return self.parse_if_statement()
@@ -73,44 +93,62 @@ class Parser:
             return self.parse_return_statement()
         if token_type == TokenType.MATCH:
             return self.parse_match_statement()
-        # Вот исправление: KASM и KASMF должны проверяться здесь, в самом начале
         if token_type == TokenType.KASM:
             return self.parse_kasm_statement()
         if token_type == TokenType.KASMF:
             return self.parse_kasmf_statement()
+        if token_type == TokenType.NASM:
+            return self.parse_nasm_statement()
+        if token_type == TokenType.NASMF:
+            return self.parse_nasmf_statement()
 
-        # === ШАГ 2: Проверка, является ли это объявлением переменной/массива ===
-        # Объявление, если начинается с типа (num32) или с имени типа (Player p1)
+        # === ШАГ 2: Проверка на объявление ===
         is_declaration = token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]
         if not is_declaration and token_type == TokenType.IDENT:
-            # Заглядываем вперед: если "имя имя", то это объявление типа "Player p1"
             if self.lexer.peek().type == TokenType.IDENT:
                 is_declaration = True
-        
+
         if is_declaration:
             return self.parse_variable_or_array_declaration()
 
-        # === ШАГ 3: Если это не ключевое слово и не объявление, то это выражение ===
-        # Это может быть присваивание (a : 5) или вызов функции (open func[]).
-        
-        # Парсим левую часть как полноценное выражение
+        # === ШАГ 3: Выражения и присваивания ===
         left_node = self.parse_expression()
 
         if self.current_token.type == TokenType.COLON:
             self.eat(TokenType.COLON)
-            if not isinstance(left_node, (AST.VariableReferenceNode, AST.ArrayAccessNode, AST.DereferenceNode, AST.PropertyAccessNode)):
-                self.error_handler.raise_syntax_error(
-                    "Invalid assignment target.", self.current_token)
+            if not isinstance(left_node, (AST.VariableReferenceNode, AST.ArrayAccessNode,
+                                        AST.DereferenceNode, AST.PropertyAccessNode,
+                                        AST.StructArrayAccessNode, AST.ArrayElementPropertyAccessNode)):
+                self.error_handler.raise_syntax_error("Invalid assignment target.", self.current_token)
             
             right_expression = self.parse_expression()
-            # Используем старое имя 'variable' вместо 'target'
             return AST.AssignmentNode(left_node, right_expression)
 
         if not isinstance(left_node, AST.FunctionCallNode):
-            self.error_handler.raise_syntax_error(
-                "This statement has no effect.", self.current_token)
-
+            self.error_handler.raise_syntax_error("This statement has no effect.", self.current_token)
+        
         return left_node
+    
+    def parse_statement(self):
+        """Главный метод парсинга операций (теперь поддерживает составные операции)"""
+        return self.parse_compound_statement()
+    
+    def parse_block(self):
+        """Парсит блок инструкций с поддержкой ; внутри блоков"""
+        statements = []
+        
+        end_tokens = [TokenType.PAREN_CLOSE, TokenType.CURLY_CLOSE, TokenType.EOF]
+        
+        while self.current_token.type not in end_tokens:
+            stmt = self.parse_compound_statement()
+            
+            # Если получили составную операцию, разворачиваем её
+            if isinstance(stmt, AST.CompoundStatementNode):
+                statements.extend(stmt.statements)
+            else:
+                statements.append(stmt)
+        
+        return statements
 
     def break_statement(self):
         token = self.current_token
@@ -251,11 +289,12 @@ class Parser:
     
     def parse_logical_and(self):
         """Парсит логическое И (&&)."""
-        node = self.parse_comparison()
+        # ИСПРАВЛЕНО: Вызываем следующий уровень - побитовое ИЛИ, а не сравнение
+        node = self.parse_bitwise_or()
         while self.current_token.type == TokenType.LOGICAL_AND:
             op_token = self.current_token
             self.eat(TokenType.LOGICAL_AND)
-            right = self.parse_comparison()
+            right = self.parse_bitwise_or()
             node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
         return node
     
@@ -281,11 +320,10 @@ class Parser:
 
     def parse_bitwise_and(self):
         """ Уровень 7: Побитовое И """
+        # ИСПРАВЛЕНО: Вызываем следующий уровень - сравнение
         node = self.parse_comparison()
-        # ### ИЗМЕНЕНО: Проверяем на AMPERSAND вместо BIT_AND ###
         while self.current_token.type == TokenType.AMPERSAND:
             op_token = self.current_token
-            # ### ИЗМЕНЕНО: "Съедаем" AMPERSAND ###
             self.eat(TokenType.AMPERSAND)
             right = self.parse_comparison()
             node = AST.BinaryOperationNode(left=node, operator=op_token.value, right=right, op_token=op_token)
@@ -298,7 +336,8 @@ class Parser:
         while self.current_token.type in op_types:
             op = self.current_token
             self.eat(op.type)
-            right = self.parse_additive()
+            # ИСПРАВЛЕНО: правый операнд должен иметь более высокий приоритет (следующий уровень)
+            right = self.parse_shift()
             node = AST.ComparisonNode(left=node, op=op.value, right=right, op_token=op)
         return node
     
@@ -451,27 +490,43 @@ class Parser:
         return AST.AssignmentNode(left_node, expression)
 
     def parse_variable_or_array_access(self):
-        """Парсит 'var', 'arr[idx]' или 'var.field' и создает узлы в старом формате."""
+        """Парсит 'var', 'arr[idx]', 'var.field', 'var.field[idx]' и 'arr[idx].field' и создает узлы."""
         name_token = self.current_token
         self.eat(TokenType.IDENT)
-
-        if self.current_token.type == TokenType.BRACKET_OPEN:
-            # Доступ к элементу массива
-            self.eat(TokenType.BRACKET_OPEN)
-            index_node = self.parse_expression()
-            self.eat(TokenType.BRACKET_CLOSE)
-            return AST.ArrayAccessNode(name_token.value, index_node)
         
-        elif self.current_token.type == TokenType.DOT:
-            # Доступ к полю/свойству
-            self.eat(TokenType.DOT)
-            property_token = self.current_token
-            self.eat(TokenType.IDENT)
-            return AST.PropertyAccessNode(name_token.value, property_token.value)
-            
-        else:
-            # Обычная ссылка на переменную
-            return AST.VariableReferenceNode(name_token.value)
+        node = AST.VariableReferenceNode(name_token.value)
+        
+        # Обработка цепочек доступа: var.field[idx].other_field[idx2] или arr[idx].field
+        while self.current_token.type in [TokenType.DOT, TokenType.BRACKET_OPEN]:
+            if self.current_token.type == TokenType.DOT:
+                # Доступ к полю структуры
+                self.eat(TokenType.DOT)
+                property_token = self.current_token
+                self.eat(TokenType.IDENT)
+                
+                # НОВОЕ: Проверяем, является ли базовый узел ArrayAccessNode
+                if isinstance(node, AST.ArrayAccessNode):
+                    # Это доступ к полю элемента массива: arr[0].field
+                    node = AST.ArrayElementPropertyAccessNode(node.name, node.index_node, property_token.value)
+                else:
+                    # Обычный доступ к полю: struct.field
+                    node = AST.PropertyAccessNode(name_token.value, property_token.value)
+                
+            elif self.current_token.type == TokenType.BRACKET_OPEN:
+                # Доступ к элементу массива
+                self.eat(TokenType.BRACKET_OPEN)
+                index_node = self.parse_expression()
+                self.eat(TokenType.BRACKET_CLOSE)
+                
+                # ИСПРАВЛЕНО: Проверяем, является ли базовый узел PropertyAccessNode
+                if isinstance(node, AST.PropertyAccessNode):
+                    # Это доступ к элементу массива поля структуры: T.arr[0]
+                    node = AST.StructArrayAccessNode(node.variable_name, node.property_name, index_node)
+                else:
+                    # Обычный доступ к элементу массива: arr[0]
+                    node = AST.ArrayAccessNode(name_token.value, index_node)
+        
+        return node
             
     def parse_variable_or_array_declaration(self):
         """Парсит 'num32 x', 'num32* p', 'num32 arr[10]' и 'Player p'."""
@@ -575,39 +630,144 @@ class Parser:
         return AST.FunctionDeclarationNode(name.value, params, body, is_variadic)
     
     def parse_kasm_statement(self):
-        """Парсит 'kasm["..."]'."""
+        """Парсит многострочный kasm["line1", "line2", ...]"""
         self.eat(TokenType.KASM)
         self.eat(TokenType.BRACKET_OPEN)
         
-        string_token = self.current_token
-        if string_token.type != TokenType.STRING:
-            self.error_handler.raise_syntax_error("Expected a string literal inside kasm.", string_token)
+        assembly_parts = []
+        
+        # Первая строка обязательна
+        if self.current_token.type != TokenType.STRING:
+            self.error_handler.raise_syntax_error("Expected assembly string", self.current_token)
+        
+        assembly_parts.append(self.current_token.value)
         self.eat(TokenType.STRING)
         
+        # Дополнительные строки через запятую
+        while self.current_token.type == TokenType.COMMA:
+            self.eat(TokenType.COMMA)
+            if self.current_token.type == TokenType.STRING:
+                assembly_parts.append(self.current_token.value)
+                self.eat(TokenType.STRING)
+        
         self.eat(TokenType.BRACKET_CLOSE)
-        return AST.KasmNode(string_token.value)
-
+        
+        return AST.MultilineKasmNode(assembly_parts)
+    
     def parse_kasmf_statement(self):
-        """Парсит 'kasmf["...", arg1, arg2]'."""
+        """Парсит kasmf с поддержкой версий и автоопределением"""
         self.eat(TokenType.KASMF)
         self.eat(TokenType.BRACKET_OPEN)
         
-        format_string_token = self.current_token
-        if format_string_token.type != TokenType.STRING:
-            self.error_handler.raise_syntax_error("Expected a format string literal inside kasmf.", format_string_token)
+        # Парсим assembly template (может быть многострочным)
+        assembly_parts = []
+        
+        # Первая строка обязательна
+        if self.current_token.type != TokenType.STRING:
+            self.error_handler.raise_syntax_error("Expected assembly template string", self.current_token)
+        
+        assembly_parts.append(self.current_token.value)
         self.eat(TokenType.STRING)
         
+        # ИСПРАВЛЕНИЕ: Собираем все строки до двоеточия или закрывающей скобки
+        while self.current_token.type == TokenType.STRING:
+            assembly_parts.append(self.current_token.value)
+            self.eat(TokenType.STRING)
+        
+        # Определяем версию по наличию двоеточия
+        if self.current_token.type == TokenType.COLON:
+            # Версия 2: GCC-style constraints
+            return self.parse_kasmf_v2(assembly_parts)
+        elif self.current_token.type == TokenType.COMMA:
+            # Версия 1: старый стиль с аргументами
+            return self.parse_kasmf_v1(assembly_parts)
+        elif self.current_token.type == TokenType.BRACKET_CLOSE:
+            # Только assembly template без аргументов (версия 1)
+            self.eat(TokenType.BRACKET_CLOSE)
+            return AST.KasmfNode(assembly_parts, args=[])
+        else:
+            self.error_handler.raise_syntax_error(
+                "Expected ':', ',' or ']' after assembly template", 
+                self.current_token
+            )
+        
+    def parse_kasmf_v1(self, assembly_parts):
+        """Парсит старую версию kasmf"""
         args = []
+        
         if self.current_token.type == TokenType.COMMA:
             self.eat(TokenType.COMMA)
-            # Парсим список выражений-аргументов
             args.append(self.parse_expression())
             while self.current_token.type == TokenType.COMMA:
                 self.eat(TokenType.COMMA)
                 args.append(self.parse_expression())
-
+        
         self.eat(TokenType.BRACKET_CLOSE)
-        return AST.KasmfNode(format_string_token.value, args)
+        
+        # Объединяем все строки в одну для v1
+        combined_template = ""
+        for part in assembly_parts:
+            if isinstance(part, list):
+                combined_template += self._reassemble_string_from_segments(part)
+            else:
+                combined_template += part
+        
+        return AST.KasmfNode(assembly_parts, args=args)
+
+    def parse_kasmf_v2(self, assembly_parts):
+        """Парсит новую версию kasmf с constraints в стиле GCC"""
+        output_constraints = []
+        input_constraints = []
+        clobber_list = []
+        
+        # Парсим output constraints: : "=r" (variable), "=m" (variable)
+        if self.current_token.type == TokenType.COLON:
+            self.eat(TokenType.COLON)
+            if self.current_token.type == TokenType.STRING:
+                while True:
+                    constraint_str = self._reassemble_string_from_segments(self.current_token.value)
+                    self.eat(TokenType.STRING)
+                    self.eat(TokenType.PAREN_OPEN)
+                    variable = self.parse_expression()
+                    self.eat(TokenType.PAREN_CLOSE)
+                    output_constraints.append((constraint_str, variable))
+                    
+                    if self.current_token.type != TokenType.COMMA:
+                        break
+                    self.eat(TokenType.COMMA)
+        
+        # Парсим input constraints: : "r" (variable), "m" (variable) 
+        if self.current_token.type == TokenType.COLON:
+            self.eat(TokenType.COLON)
+            if self.current_token.type == TokenType.STRING:
+                while True:
+                    constraint_str = self._reassemble_string_from_segments(self.current_token.value)
+                    self.eat(TokenType.STRING)
+                    self.eat(TokenType.PAREN_OPEN)
+                    variable = self.parse_expression()
+                    self.eat(TokenType.PAREN_CLOSE)
+                    input_constraints.append((constraint_str, variable))
+                    
+                    if self.current_token.type != TokenType.COMMA:
+                        break
+                    self.eat(TokenType.COMMA)
+        
+        # Парсим clobber list: : "eax", "memory", "ebx"
+        if self.current_token.type == TokenType.COLON:
+            self.eat(TokenType.COLON)
+            if self.current_token.type == TokenType.STRING:
+                while True:
+                    clobber_item = self._reassemble_string_from_segments(self.current_token.value)
+                    clobber_list.append(clobber_item)
+                    self.eat(TokenType.STRING)
+                    
+                    if self.current_token.type != TokenType.COMMA:
+                        break
+                    self.eat(TokenType.COMMA)
+        
+        self.eat(TokenType.BRACKET_CLOSE)
+        
+        return AST.KasmfNode(assembly_parts, output_constraints, input_constraints, clobber_list)
     
     def parse_for_statement(self):
         """Парсит конструкцию for [init; condition; increment] ( body )"""
@@ -639,25 +799,264 @@ class Parser:
         return AST.ForNode(init_node, condition_node, increment_node, body)
     
     def parse_struct_declaration(self):
-        """Парсит 'struct Name ( field_type field_name ... )'."""
+        """Парсит 'struct Name ( field_type field_name ... )' с поддержкой массивов."""
         self.eat(TokenType.STRUCT)
+        name_token = self.current_token
+        self.eat(TokenType.IDENT)
+        self.eat(TokenType.PAREN_OPEN)
+
+        fields = []
+
+        # Парсим поля, пока не встретим закрывающую скобку
+        while self.current_token.type != TokenType.PAREN_CLOSE:
+            # Парсим тип поля
+            field_type = self.parse_type()
+            
+            # Парсим имя поля
+            field_name = self.current_token.value
+            self.eat(TokenType.IDENT)
+            
+            # НОВОЕ: Проверяем, является ли поле массивом
+            if self.current_token.type == TokenType.BRACKET_OPEN:
+                self.eat(TokenType.BRACKET_OPEN)
+                size_node = self.parse_expression()
+                self.eat(TokenType.BRACKET_CLOSE)
+                
+                # Возвращаем кортеж из 3 элементов для массива
+                if not isinstance(size_node, AST.NumberLiteralNode):
+                    self.error_handler.raise_syntax_error(
+                        "Array size in struct must be constant", 
+                        self.current_token
+                    )
+                
+                fields.append((field_type, field_name, size_node.value))
+            else:
+                # Обычное поле - кортеж из 2 элементов
+                fields.append((field_type, field_name))
+
+        self.eat(TokenType.PAREN_CLOSE)
+        return AST.StructDeclarationNode(name_token.value, fields)
+    
+    def parse_struct_field(self):
+        """Парсит поле структуры с поддержкой массивов и указателей"""
+        field_type = self.parse_type()  # Уже поддерживает указатели (char*)
+        
+        field_name = self.current_token.value
+        self.eat(TokenType.IDENT)
+        
+        # Проверяем, является ли поле массивом
+        if self.current_token.type == TokenType.BRACKET_OPEN:
+            self.eat(TokenType.BRACKET_OPEN)
+            size_node = self.parse_expression()
+            self.eat(TokenType.BRACKET_CLOSE)
+            
+            # Возвращаем информацию о массиве
+            if not isinstance(size_node, AST.NumberLiteralNode):
+                raise TypeError("Array size in struct must be constant")
+            
+            return (f"{field_type}[{size_node.value}]", field_name, size_node.value)
+        
+        return (field_type, field_name, None)
+    
+    def parse_nasm_statement(self):
+        """Парсит многострочный nasm["line1", "line2", ...]"""
+        self.eat(TokenType.NASM)
+        self.eat(TokenType.BRACKET_OPEN)
+        
+        assembly_parts = []
+        
+        # Первая строка обязательна
+        if self.current_token.type != TokenType.STRING:
+            self.error_handler.raise_syntax_error("Expected assembly string", self.current_token)
+        
+        assembly_parts.append(self.current_token.value)
+        self.eat(TokenType.STRING)
+        
+        # Дополнительные строки через запятую
+        while self.current_token.type == TokenType.COMMA:
+            self.eat(TokenType.COMMA)
+            if self.current_token.type == TokenType.STRING:
+                assembly_parts.append(self.current_token.value)
+                self.eat(TokenType.STRING)
+        
+        self.eat(TokenType.BRACKET_CLOSE)
+        return AST.NasmNode(assembly_parts)
+
+    def parse_nasmf_statement(self):
+        """Парсит nasmf с поддержкой версий и автоопределением"""
+        self.eat(TokenType.NASMF)
+        self.eat(TokenType.BRACKET_OPEN)
+        
+        # Парсим assembly template (может быть многострочным)
+        assembly_parts = []
+        
+        # Первая строка обязательна
+        if self.current_token.type != TokenType.STRING:
+            self.error_handler.raise_syntax_error("Expected assembly template string", self.current_token)
+        
+        assembly_parts.append(self.current_token.value)
+        self.eat(TokenType.STRING)
+        
+        # Собираем все строки до двоеточия или закрывающей скобки
+        while self.current_token.type == TokenType.STRING:
+            assembly_parts.append(self.current_token.value)
+            self.eat(TokenType.STRING)
+        
+        # Определяем версию по наличию двоеточия
+        if self.current_token.type == TokenType.COLON:
+            # Версия 2: GCC-style constraints
+            return self.parse_nasmf_v2(assembly_parts)
+        elif self.current_token.type == TokenType.COMMA:
+            # Версия 1: старый стиль с аргументами
+            return self.parse_nasmf_v1(assembly_parts)
+        elif self.current_token.type == TokenType.BRACKET_CLOSE:
+            # Только assembly template без аргументов (версия 1)
+            self.eat(TokenType.BRACKET_CLOSE)
+            return AST.NasmfNode(assembly_parts, args=[])
+        else:
+            self.error_handler.raise_syntax_error(
+                "Expected ':', ',' or ']' after assembly template",
+                self.current_token
+            )
+
+    def parse_nasmf_v1(self, assembly_parts):
+        """Парсит старую версию nasmf"""
+        args = []
+        
+        if self.current_token.type == TokenType.COMMA:
+            self.eat(TokenType.COMMA)
+            args.append(self.parse_expression())
+            
+            while self.current_token.type == TokenType.COMMA:
+                self.eat(TokenType.COMMA)
+                args.append(self.parse_expression())
+        
+        self.eat(TokenType.BRACKET_CLOSE)
+        return AST.NasmfNode(assembly_parts, args=args)
+
+    def parse_nasmf_v2(self, assembly_parts):
+        """Парсит новую версию nasmf с constraints"""
+        output_constraints = []
+        input_constraints = []
+        clobber_list = []
+        
+        # Парсим output constraints: : "=r" (variable)
+        if self.current_token.type == TokenType.COLON:
+            self.eat(TokenType.COLON)
+            if self.current_token.type == TokenType.STRING:
+                while True:
+                    constraint_str = self.current_token.value
+                    self.eat(TokenType.STRING)
+                    self.eat(TokenType.PAREN_OPEN)
+                    variable = self.parse_expression()
+                    self.eat(TokenType.PAREN_CLOSE)
+                    output_constraints.append((constraint_str, variable))
+                    
+                    if self.current_token.type != TokenType.COMMA:
+                        break
+                    self.eat(TokenType.COMMA)
+        
+        # Парсим input constraints: : "r" (variable)
+        if self.current_token.type == TokenType.COLON:
+            self.eat(TokenType.COLON)
+            if self.current_token.type == TokenType.STRING:
+                while True:
+                    constraint_str = self.current_token.value
+                    self.eat(TokenType.STRING)
+                    self.eat(TokenType.PAREN_OPEN)
+                    variable = self.parse_expression()
+                    self.eat(TokenType.PAREN_CLOSE)
+                    input_constraints.append((constraint_str, variable))
+                    
+                    if self.current_token.type != TokenType.COMMA:
+                        break
+                    self.eat(TokenType.COMMA)
+        
+        # Парсим clobber list: : "eax", "memory"
+        if self.current_token.type == TokenType.COLON:
+            self.eat(TokenType.COLON)
+            if self.current_token.type == TokenType.STRING:
+                while True:
+                    clobber_list.append(self.current_token.value)
+                    self.eat(TokenType.STRING)
+                    
+                    if self.current_token.type != TokenType.COMMA:
+                        break
+                    self.eat(TokenType.COMMA)
+        
+        self.eat(TokenType.BRACKET_CLOSE)
+        return AST.NasmfNode(assembly_parts, output_constraints, input_constraints, clobber_list)
+
+    def parse_compound_statement(self):
+        """Парсит несколько операций, разделенных точкой с запятой"""
+        statements = []
+        
+        # Парсим первую операцию
+        statements.append(self.parse_single_statement())
+        
+        # Парсим дополнительные операции через ;
+        while self.current_token.type == TokenType.SEMICOLON:
+            self.eat(TokenType.SEMICOLON)
+            
+            # Пропускаем пустые операции (двойные ;; или ; в конце строки)
+            if self.current_token.type in [TokenType.PAREN_CLOSE, TokenType.CURLY_CLOSE, 
+                                        TokenType.EOF, TokenType.SEMICOLON]:
+                break
+                
+            statements.append(self.parse_single_statement())
+        
+        # Если была только одна операция, возвращаем её напрямую
+        if len(statements) == 1:
+            return statements[0]
+        
+        # Иначе возвращаем составную операцию
+        return AST.CompoundStatementNode(statements)
+    
+    def parse_enum_declaration(self):
+        """Парсит 'enum Name ( VALUE1 : 1, VALUE2 : 2, ... )'"""
+        self.eat(TokenType.ENUM)
+        
         name_token = self.current_token
         self.eat(TokenType.IDENT)
         
         self.eat(TokenType.PAREN_OPEN)
         
-        fields = []
-        # Парсим поля, пока не встретим закрывающую скобку
-        while self.current_token.type != TokenType.PAREN_CLOSE:
-            field_type = self.parse_type()
-            field_name = self.current_token.value
-            self.eat(TokenType.IDENT)
-            fields.append((field_type, field_name))
-            
-        self.eat(TokenType.PAREN_CLOSE)
+        values = []
+        current_value = 0  # Автоинкремент начинается с 0
         
-        return AST.StructDeclarationNode(name_token.value, fields)
-
+        while self.current_token.type != TokenType.PAREN_CLOSE:
+            # Парсим имя значения
+            value_name = self.current_token.value
+            self.eat(TokenType.IDENT)
+            
+            # Проверяем, есть ли явное значение
+            if self.current_token.type == TokenType.COLON:
+                self.eat(TokenType.COLON)
+                # Явное значение
+                if self.current_token.type != TokenType.NUMBER:
+                    self.error_handler.raise_syntax_error(
+                        "Expected number after ':' in enum value", 
+                        self.current_token
+                    )
+                current_value = self.current_token.value
+                self.eat(TokenType.NUMBER)
+            
+            values.append((value_name, current_value))
+            current_value += 1  # Автоинкремент для следующего значения
+            
+            # Проверяем на запятую или конец
+            if self.current_token.type == TokenType.COMMA:
+                self.eat(TokenType.COMMA)
+            elif self.current_token.type == TokenType.PAREN_CLOSE:
+                break
+            else:
+                self.error_handler.raise_syntax_error(
+                    "Expected ',' or ')' in enum declaration", 
+                    self.current_token
+                )
+        
+        self.eat(TokenType.PAREN_CLOSE)
+        return AST.EnumDeclarationNode(name_token.value, values)
 
     def parse(self):
         """Главный метод парсера."""
@@ -669,6 +1068,8 @@ class Parser:
             # --- ИЗМЕНЕНИЕ НАЧАЛО ---
             elif token_type == TokenType.STRUCT:
                 declarations.append(self.parse_struct_declaration())
+            elif token_type == TokenType.ENUM:
+                declarations.append(self.parse_enum_declaration())
             # Теперь объявление переменной может начинаться с IDENT (имя структуры)
             elif token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT, TokenType.IDENT]:
                 declarations.append(self.parse_variable_or_array_declaration())

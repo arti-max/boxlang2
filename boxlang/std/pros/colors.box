@@ -1,0 +1,52 @@
+struct TextColors (
+    char WHITE
+    char GREEN
+    char CYAN
+    char RED
+)
+
+struct VgaColors (
+    char BLACK
+    char DARK_BLUE
+    char DARK_GREEN
+    char DARK_CYAN
+    char DARK_RED
+    char DARK_MAGNETA
+    char BROWN
+    char LIGHT_GRAY
+    char DARK_GRAY
+    char BLUE
+    char GREEN
+    char CYAN
+    char RED
+    char MAGNETA
+    char YELLOW
+    char WHITE
+)
+
+TextColors TEXT_COLORS
+VgaColors VGA_COLORS
+
+box init_all_colors_structs[] (
+    TEXT_COLORS.WHITE : 0x01
+    TEXT_COLORS.GREEN : 0x02
+    TEXT_COLORS.CYAN : 0x03
+    TEXT_COLORS.RED : 0x04
+
+    VGA_COLORS.BLACK : 0x00
+    VGA_COLORS.DARK_BLUE : 0x01
+    VGA_COLORS.DARK_GREEN : 0x02
+    VGA_COLORS.DARK_CYAN : 0x03
+    VGA_COLORS.DARK_RED : 0x04
+    VGA_COLORS.DARK_MAGNETA : 0x05
+    VGA_COLORS.BROWN : 0x06
+    VGA_COLORS.LIGHT_GRAY : 0x07
+    VGA_COLORS.DARK_GRAY : 0x08
+    VGA_COLORS.BLUE : 0x09
+    VGA_COLORS.GREEN : 0x0A
+    VGA_COLORS.CYAN : 0x0B
+    VGA_COLORS.RED : 0x0C
+    VGA_COLORS.MAGNETA : 0x0D
+    VGA_COLORS.YELLOW : 0x0E
+    VGA_COLORS.WHITE : 0x0F
+)

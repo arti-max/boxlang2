@@ -1,0 +1,170 @@
+@incl <pros/stdscreen>
+
+num16* __argv_pointer
+
+
+
+box init_prox_app[] (
+    nasmf["mov {0}, si", __argv_pointer]
+    nasm["mov bx, ax"]
+    nasm["mov [bx], si"]
+)
+
+box reboot[] (
+    nasm["int 0x19"]
+)
+
+## copy string loop
+## char* dst - array to save (str)
+## char* src - array to copy (str)
+## num16 len - count of characters
+box strcpy[char* dst, char* src] (
+    num16 i : 0
+    while [src[i] != 0] (
+        dst[i] : src[i]
+        i : i + 1
+    )
+    dst[i] : 0  ## нулевой терминатор
+    ret i
+)
+
+## Конвертация числа в строку (itoa - integer to ASCII)
+box itoa[num16 value, char* buffer] (
+    num16 pos : 0
+    num16 start_pos : 0
+    char temp_char
+    
+    ## Обрабатываем ноль отдельно
+    if [value == 0] (
+        buffer[0] : '0'
+        buffer[1] : 0
+        ret 1
+    )
+    
+    ## Обрабатываем отрицательные числа
+    if [value < 0] (
+        buffer[0] : '-'
+        pos : 1
+        start_pos : 1
+        value : 0 - value  ## делаем положительным
+    )
+    
+    ## Извлекаем цифры (они получатся в обратном порядке)
+    while [value > 0] (
+        buffer[pos] : '0' + (value % 10)
+        value : value / 10
+        pos : pos + 1
+    )
+    
+    ## Добавляем нулевой терминатор
+    buffer[pos] : 0
+    
+    ## Переворачиваем цифры (исключая знак минус)
+    pos : pos - 1
+    while [start_pos < pos] (
+        temp_char : buffer[start_pos]
+        buffer[start_pos] : buffer[pos]
+        buffer[pos] : temp_char
+        start_pos : start_pos + 1
+        pos : pos - 1
+    )
+    
+    ret open strlen[buffer]
+)
+## Конвертация числа в строку с указанием системы счисления
+box itoa_base[num16 value, char* buffer, num16 base] (
+    num16 pos : 0
+    num16 start_pos : 0
+    char temp_char
+    char digits[16] : "0123456789ABCDEF"
+    
+    ## Проверяем корректность основания
+    if [base < 2 || base > 16] (
+        buffer[0] : 0
+        ret 0
+    )
+    
+    ## Обрабатываем ноль
+    if [value == 0] (
+        buffer[0] : '0'
+        buffer[1] : 0
+        ret 1
+    )
+    
+    ## Для отрицательных чисел (только для десятичной системы)
+    if [value < 0 && base == 10] (
+        buffer[0] : '-'
+        pos : 1
+        start_pos : 1
+        value : 0 - value
+    )
+    
+    ## Извлекаем цифры
+    while [value > 0] (
+        buffer[pos] : digits[value % base]
+        value : value / base
+        pos : pos + 1
+    )
+    
+    ## Нулевой терминатор
+    buffer[pos] : 0
+    
+    ## Переворачиваем цифры
+    pos : pos - 1
+    while [start_pos < pos] (
+        temp_char : buffer[start_pos]
+        buffer[start_pos] : buffer[pos]
+        buffer[pos] : temp_char
+        start_pos : start_pos + 1
+        pos : pos - 1
+    )
+    
+    ret open strlen[buffer]
+)
+
+box print_hex_byte_fixed[char value] (
+    char buffer[5]  ## "0x" + 2 символа + \0
+    buffer[0] : '0'
+    buffer[1] : 'x'
+    
+    ## Ручное преобразование в hex для гарантии 2 символов
+    char digits[16] : "0123456789ABCDEF"
+    buffer[2] : digits[(value >> 4) & 0x0F]  ## старший полубайт
+    buffer[3] : digits[value & 0x0F]         ## младший полубайт
+    buffer[4] : 0                            ## терминатор
+    
+    open print_string[buffer]
+)
+
+box print_hex[num16 value] (
+    char buffer[19]  ## "0x" + 16 символа + \0
+    buffer[0] : '0'
+    buffer[1] : 'x'
+    open itoa_base[value, buffer + 2, 16]
+    open print_string[buffer]
+)
+
+box print_binary[num16 value] (
+    char buffer[19]  ## "0b" + 16 символа + \0
+    buffer[0] : '0'
+    buffer[1] : 'b'
+    open itoa_base[value, buffer + 2, 2]
+    open print_string[buffer]
+)
+
+box strcmp[char* s1, char* s2] (ret 0)
+box strlen[char* s] (
+    num16 len : 0
+    while [s[len] != 0] (
+        len : len + 1
+    )
+    ret len
+)
+
+box get_command_argv[char index] (
+
+)
+
+box printf[char* s, ...] (
+
+)
