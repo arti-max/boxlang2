@@ -1,0 +1,799 @@
+BITS 16
+ORG 0x8000
+
+section .text
+
+    jmp _start
+
+
+
+__s1243_offs_1122:
+    push bp
+ mov bp, sp
+; Global offset set to 0x8000
+.L_ret___s1243_offs_1122:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+init_all_colors_ctructs:
+    push bp
+ mov bp, sp
+ mov ax, 1
+    push ax
+ mov ax, 1
+    push ax
+ mov bx, __var_TEXT_COLORS
+    pop ax
+ mov [bx], al
+ mov ax, 2
+    push ax
+ mov ax, 2
+    push ax
+ mov bx, __var_TEXT_COLORS
+    add bx, 1
+    pop ax
+ mov [bx], al
+ mov ax, 3
+    push ax
+ mov ax, 3
+    push ax
+ mov bx, __var_TEXT_COLORS
+    add bx, 2
+    pop ax
+ mov [bx], al
+ mov ax, 4
+    push ax
+ mov ax, 4
+    push ax
+ mov bx, __var_TEXT_COLORS
+    add bx, 3
+    pop ax
+ mov [bx], al
+ mov ax, 0
+    push ax
+ mov ax, 0
+    push ax
+ mov bx, __var_VGA_COLORS
+    pop ax
+ mov [bx], al
+ mov ax, 1
+    push ax
+ mov ax, 1
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 1
+    pop ax
+ mov [bx], al
+ mov ax, 2
+    push ax
+ mov ax, 2
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 2
+    pop ax
+ mov [bx], al
+ mov ax, 3
+    push ax
+ mov ax, 3
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 3
+    pop ax
+ mov [bx], al
+ mov ax, 4
+    push ax
+ mov ax, 4
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 4
+    pop ax
+ mov [bx], al
+ mov ax, 5
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 5
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 5
+    pop ax
+ mov [bx], al
+ mov ax, 6
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 6
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 6
+    pop ax
+ mov [bx], al
+ mov ax, 7
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 7
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 7
+    pop ax
+ mov [bx], al
+ mov ax, 8
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 8
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 8
+    pop ax
+ mov [bx], al
+ mov ax, 9
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 9
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 9
+    pop ax
+ mov [bx], al
+ mov ax, 10
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 10
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 10
+    pop ax
+ mov [bx], al
+ mov ax, 11
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 11
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 11
+    pop ax
+ mov [bx], al
+ mov ax, 12
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 12
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 12
+    pop ax
+ mov [bx], al
+ mov ax, 13
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 13
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 13
+    pop ax
+ mov [bx], al
+ mov ax, 14
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 14
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 14
+    pop ax
+ mov [bx], al
+ mov ax, 15
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 15
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, __var_VGA_COLORS
+    add bx, 15
+    pop ax
+ mov [bx], al
+.L_ret_init_all_colors_ctructs:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+init_text_mode:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+    call init_all_colors_ctructs
+ mov ah, 0x00
+    int 0x21
+.L_ret_init_text_mode:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+clear_screen:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+ mov ah, 0x06
+    int 0x21
+.L_ret_clear_screen:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+print_newline:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+ mov ah, 0x05
+    int 0x21
+.L_ret_print_newline:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+set_text_color:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bl, al
+ mov ah, 0x07
+    int 0x21
+.L_ret_set_text_color:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+print_string:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov si, ax
+ mov ah, 0x08
+    int 0x21
+.L_ret_print_string:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+print_white_string:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov si, ax
+ mov ah, 0x01
+    int 0x21
+.L_ret_print_white_string:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+init_prox_app:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+ mov bx, __var___argv_pointer
+ mov ax, 0
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov ax, si
+.L_ret_init_prox_app:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+reboot:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+    int 0x19
+.L_ret_reboot:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+get_command_argv:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+.L_ret_get_command_argv:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+printf:
+    ; WARNING: Deep stack usage detected
+    push bp
+ mov bp, sp
+.L_ret_printf:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+reverse_string:
+    push bp
+ mov bp, sp
+    sub sp, 1
+ mov ax, 0
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bx, bp
+    sub bx, 1
+ mov [bx], al
+ mov ax, 12
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 0
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov bx, bp
+    sub bx, 1
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 12
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov ax, 1
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bx, bp
+    sub bx, 1
+ mov [bx], al
+ mov ax, 11
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 1
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov bx, bp
+    sub bx, 1
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 11
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov ax, 2
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bx, bp
+    sub bx, 1
+ mov [bx], al
+ mov ax, 10
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 2
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov bx, bp
+    sub bx, 1
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 10
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov ax, 3
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bx, bp
+    sub bx, 1
+ mov [bx], al
+ mov ax, 9
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 3
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov bx, bp
+    sub bx, 1
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 9
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov ax, 4
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bx, bp
+    sub bx, 1
+ mov [bx], al
+ mov ax, 8
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 4
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov bx, bp
+    sub bx, 1
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 8
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov ax, 5
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+    pop ax
+ mov bx, bp
+    sub bx, 1
+ mov [bx], al
+ mov ax, 7
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+ mov ax, word [bx]
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 5
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+ mov bx, bp
+    sub bx, 1
+ mov ax, 0
+ mov ax, [bx]
+ mov ax, ax
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov ax, 7
+    ; WARNING: Deep stack usage detected
+    push ax
+ mov bx, bp
+    add bx, 4
+ mov ax, 0
+ mov ax, word [bx]
+    pop bx
+    add ax, bx
+ mov bx, ax
+    pop ax
+ mov word [bx], ax
+.L_ret_reverse_string:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+_start:
+    push bp
+ mov bp, sp
+    sub sp, 14
+; --- Initialize array 'hello' from __str_init_0 ---
+ mov si, bp
+    sub si, 14
+ mov di, __str_init_0
+ mov cx, 13
+.L_strcpy_0:
+ mov ax, [di]
+ mov ax, ax
+ mov [si], al
+ inc si
+ inc di
+ dec cx
+ jnz .L_strcpy_0
+ mov ax, __str_init_1
+    push ax
+    call print_white_string
+    add sp, 2
+ mov ax, bp
+    sub ax, 14
+    ; WARNING: Deep stack usage detected
+    push ax
+    call print_white_string
+    add sp, 2
+    call print_newline
+ mov ax, bp
+    sub ax, 14
+    ; WARNING: Deep stack usage detected
+    push ax
+    call reverse_string
+    add sp, 2
+ mov ax, __str_init_2
+    ; WARNING: Deep stack usage detected
+    push ax
+    call print_white_string
+    add sp, 2
+ mov ax, bp
+    sub ax, 14
+    ; WARNING: Deep stack usage detected
+    push ax
+    call print_white_string
+    add sp, 2
+    call print_newline
+.L_ret__start:
+ mov ax, 0
+ mov sp, bp
+    pop bp
+    ret
+
+; === Data Section ===
+__var_TEXT_COLORS:
+    times 4 db 0
+__var_VGA_COLORS:
+    times 16 db 0
+__var___argv_pointer:
+    times 2 db 0
+__str_init_0:
+    db "Hello, World!" , 0
+__str_init_1:
+    db "Original: ", 0
+__str_init_2:
+    db "Reversed: ", 0
+
+; Виртуальные регистры %e8-%e31
+virtual_regs: times 24 dw 0  ; Виртуальные регистры %e8-%e31 (16-bit)

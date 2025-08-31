@@ -2,6 +2,142 @@ jmp _start
 
 
 
+init_vga_colors:
+    psh %ebp
+    mov %ebp %esp
+    mov %eax 0
+    psh %eax ; Save expression result
+    mov %eax 0
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'BLACK'
+    mov %eax 1
+    psh %eax ; Save expression result
+    mov %eax 1
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 4 ; offset for field 'RED'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'RED'
+    mov %eax 2
+    psh %eax ; Save expression result
+    mov %eax 2
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 2 ; offset for field 'GREEN'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'GREEN'
+    mov %eax 3
+    psh %eax ; Save expression result
+    mov %eax 3
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 5 ; offset for field 'BROWN'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'BROWN'
+    mov %eax 4
+    psh %eax ; Save expression result
+    mov %eax 4
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 1 ; offset for field 'BLUE'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'BLUE'
+    mov %eax 5
+    psh %eax ; Save expression result
+    mov %eax 5
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 12 ; offset for field 'MAGENTA'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'MAGENTA'
+    mov %eax 6
+    psh %eax ; Save expression result
+    mov %eax 6
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 3 ; offset for field 'CYAN'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'CYAN'
+    mov %eax 7
+    psh %eax ; Save expression result
+    mov %eax 7
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 6 ; offset for field 'LIGHT_GRAY'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'LIGHT_GRAY'
+    mov %eax 8
+    psh %eax ; Save expression result
+    mov %eax 8
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 7 ; offset for field 'DARK_GRAY'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'DARK_GRAY'
+    mov %eax 9
+    psh %eax ; Save expression result
+    mov %eax 9
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 11 ; offset for field 'LIGHT_RED'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'LIGHT_RED'
+    mov %eax 10
+    psh %eax ; Save expression result
+    mov %eax 10
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 9 ; offset for field 'LIGHT_GREEN'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'LIGHT_GREEN'
+    mov %eax 11
+    psh %eax ; Save expression result
+    mov %eax 11
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 14 ; offset for field 'YELLOW'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'YELLOW'
+    mov %eax 12
+    psh %eax ; Save expression result
+    mov %eax 12
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 8 ; offset for field 'LIGHT_BLUE'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'LIGHT_BLUE'
+    mov %eax 13
+    psh %eax ; Save expression result
+    mov %eax 13
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 13 ; offset for field 'PINK'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'PINK'
+    mov %eax 14
+    psh %eax ; Save expression result
+    mov %eax 14
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 10 ; offset for field 'LIGHT_CYAN'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'LIGHT_CYAN'
+    mov %eax 15
+    psh %eax ; Save expression result
+    mov %eax 15
+    psh %eax ; Save expression result
+    mov %ebx __var_VGA_COLORS
+    add %ebx 15 ; offset for field 'WHITE'
+    pop %eax ; Restore expression result
+    sb %ebx %eax ; Store value into field 'WHITE'
+.L_ret_init_vga_colors:
+    mov %eax 0 ; Default return value
+    mov %esp %ebp
+    pop %ebp
+    rts
+
 init_text_mode:
     psh %ebp
     mov %ebp %esp
@@ -38,7 +174,23 @@ init_text_mode:
  psh %eax
  jsr set_cursor_pos
  add %esp 8
+ jsr init_vga_colors
  jsr init_standard_colors
+    mov %ebx __var_VGA_COLORS
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'BLACK'
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var__current_background_color
+    sb %ebx %eax
+    mov %ebx __var_VGA_COLORS
+    add %ebx 15 ; offset for field 'WHITE'
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'WHITE'
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var__current_character_color
+    sb %ebx %eax
 .L_ret_init_text_mode:
     mov %eax 0 ; Default return value
     mov %esp %ebp
@@ -81,7 +233,23 @@ init_text_mode_beta:
  psh %eax
  jsr set_cursor_pos
  add %esp 8
+ jsr init_vga_colors
  jsr init_standard_colors
+    mov %ebx __var_VGA_COLORS
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'BLACK'
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var__current_background_color
+    sb %ebx %eax
+    mov %ebx __var_VGA_COLORS
+    add %ebx 15 ; offset for field 'WHITE'
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'WHITE'
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var__current_character_color
+    sb %ebx %eax
 .L_ret_init_text_mode_beta:
     mov %eax 0 ; Default return value
     mov %esp %ebp
@@ -535,8 +703,8 @@ clear_screen:
 .L_comp_true_5:
  mov %eax 1 ; True
 .L_comp_end_5:
-        cmp %eax 0
-        je .L_for_end_3
+ cmp %eax 0
+ je .L_for_end_3
     mov %eax 32
     psh %eax ; Save expression result
     mov %ebx __var_text_ptr
@@ -554,10 +722,16 @@ clear_screen:
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var_text_ptr
     sd %ebx %eax
-    mov %ebx %ebp
-    add %ebx 8
+    mov %eax 4
+ psh %eax
+    mov %ebx __var__current_background_color
     mov %eax 0
     lb %ebx %eax
+ pop %ebx
+    mov %ebx __var__current_background_color
+    mov %eax 0
+    lb %ebx %eax
+ sal %eax 4
     psh %eax ; Save expression result
     mov %ebx __var_text_ptr
     ld %ebx %eax
@@ -574,6 +748,7 @@ clear_screen:
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var_text_ptr
     sd %ebx %eax
+.L_for_inc_3:
     mov %eax 2
  psh %eax
     mov %ebx %ebp
@@ -586,7 +761,7 @@ clear_screen:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_for_start_3
+ jmp .L_for_start_3
 .L_for_end_3:
     mov %eax 1
  psh %eax
@@ -876,6 +1051,48 @@ set_character_color:
     pop %ebp
     rts
 
+set_background_color:
+    psh %ebp
+    mov %ebp %esp
+    mov %ebx %ebp
+    add %ebx 8
+    mov %eax 0
+    lb %ebx %eax
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var__current_background_color
+    sb %ebx %eax
+.L_ret_set_background_color:
+    mov %eax 0 ; Default return value
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+combine_colors:
+    psh %ebp
+    mov %ebp %esp
+    mov %ebx __var__current_character_color
+    mov %eax 0
+    lb %ebx %eax
+ psh %eax
+    mov %eax 4
+ psh %eax
+    mov %ebx __var__current_background_color
+    mov %eax 0
+    lb %ebx %eax
+ pop %ebx
+    mov %ebx __var__current_background_color
+    mov %eax 0
+    lb %ebx %eax
+ sal %eax 4
+ pop %ebx
+ add %eax %ebx
+    jmp .L_ret_combine_colors
+.L_ret_combine_colors:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
 print_char:
     psh %ebp
     mov %ebp %esp
@@ -920,9 +1137,7 @@ print_char:
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var_text_ptr
     sd %ebx %eax
-    mov %ebx __var__current_character_color
-    mov %eax 0
-    lb %ebx %eax
+ jsr combine_colors
     psh %eax ; Save expression result
     mov %ebx __var_text_ptr
     ld %ebx %eax
@@ -997,9 +1212,9 @@ print:
 .L_comp_true_23:
  mov %eax 1 ; True
 .L_comp_end_23:
-        cmp %eax 0
-        je .L_while_end_21 ; Jump to end if condition is false
-        ; --- while-body ---
+ cmp %eax 0
+ je .L_while_end_21 ; Jump to end if condition is false
+ ; --- while-body ---
     mov %ebx %ebp
     add %ebx 8
     ld %ebx %eax
@@ -1021,7 +1236,7 @@ print:
     mov %ebx %ebp
     add %ebx 8
     sd %ebx %eax
-        jmp .L_while_start_21
+ jmp .L_while_start_21
 .L_while_end_21:
 .L_ret_print:
     mov %eax 0 ; Default return value
@@ -1085,7 +1300,7 @@ print_num:
  add %esp 4
     mov %eax 1
  not %eax
- inx %eax ; Emulated unary minus (negation)
+ inx %eax
  psh %eax
     mov %ebx %ebp
     add %ebx 8
@@ -1113,9 +1328,9 @@ print_num:
 .L_comp_true_32:
  mov %eax 1 ; True
 .L_comp_end_32:
-        cmp %eax 0
-        je .L_while_end_30 ; Jump to end if condition is false
-        ; --- while-body ---
+ cmp %eax 0
+ je .L_while_end_30 ; Jump to end if condition is false
+ ; --- while-body ---
     mov %eax 10
  psh %eax
     mov %ebx %ebp
@@ -1185,7 +1400,7 @@ print_num:
     mov %ebx %ebp
     sub %ebx 258
     sw %ebx %eax
-        jmp .L_while_start_30
+ jmp .L_while_start_30
 .L_while_end_30:
 .L_while_start_33:
     mov %eax 0
@@ -1202,9 +1417,9 @@ print_num:
 .L_comp_true_35:
  mov %eax 1 ; True
 .L_comp_end_35:
-        cmp %eax 0
-        je .L_while_end_33 ; Jump to end if condition is false
-        ; --- while-body ---
+ cmp %eax 0
+ je .L_while_end_33 ; Jump to end if condition is false
+ ; --- while-body ---
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -1237,9 +1452,125 @@ print_num:
  psh %eax
  jsr print_char
  add %esp 4
-        jmp .L_while_start_33
+ jmp .L_while_start_33
 .L_while_end_33:
 .L_ret_print_num:
+    mov %eax 0 ; Default return value
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+print_float:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 12 ; Allocate space for ALL local variables
+ mov %ebx __var_float_0
+ ld %ebx %eax
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ subf32 %eax %ebx ; Emulate float comparison
+ and %eax $80000000
+ cmp %eax $80000000
+ je __comp_true_37
+ mov %eax 0 ; False
+ jmp __comp_end_37
+__comp_true_37:
+ mov %eax 1 ; True
+__comp_end_37:
+        cmp %eax 0
+        je .L_endif_36 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %eax 45
+ psh %eax
+ jsr print_char
+ add %esp 4
+ mov %ebx __var_float_1
+ ld %ebx %eax
+ negf32 %eax ; Negate float value by flipping the sign bit
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ mulf32 %eax %ebx ; Float operation
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    add %ebx 8
+    sd %ebx %eax
+        jmp .L_endif_36 ; End of if-body
+.L_endif_36:
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ cfi %eax ; Convert float in EAX to integer
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+ psh %eax
+ jsr print_num
+ add %esp 4
+    mov %eax 46
+ psh %eax
+ jsr print_char
+ add %esp 4
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+ cif %eax ; Convert integer in EAX to float
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ subf32 %eax %ebx ; Float operation
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+ mov %ebx __var_float_2
+ ld %ebx %eax
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ mulf32 %eax %ebx ; Float operation
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+ mov %ebx __var_float_3
+ ld %ebx %eax
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ addf32 %eax %ebx ; Float operation
+ cfi %eax ; Convert float in EAX to integer
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 12
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 12
+    ld %ebx %eax
+ psh %eax
+ jsr print_num
+ add %esp 4
+.L_ret_print_float:
     mov %eax 0 ; Default return value
     mov %esp %ebp
     pop %ebp
@@ -1278,8 +1609,8 @@ rand:
  int $21
     mov %eax %ebp
     sub %eax 4
- mov %e8 %eax
- sd %e8 %edx
+ mov %e12 %eax
+ sd %e12 %edx
     mov %ebx %ebp
     sub %ebx 4
     ld %ebx %eax
@@ -1331,7 +1662,7 @@ sum_n32:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-.L_for_start_36:
+.L_for_start_38:
     mov %ebx %ebp
     add %ebx 12
     ld %ebx %eax
@@ -1341,14 +1672,14 @@ sum_n32:
     ld %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_38
+ jl .L_comp_true_40
  mov %eax 0 ; False
- jmp .L_comp_end_38
-.L_comp_true_38:
+ jmp .L_comp_end_40
+.L_comp_true_40:
  mov %eax 1 ; True
-.L_comp_end_38:
-        cmp %eax 0
-        je .L_for_end_36
+.L_comp_end_40:
+ cmp %eax 0
+ je .L_for_end_38
     mov %ebx %ebp
     sub %ebx 8
     ld %ebx %eax
@@ -1374,6 +1705,7 @@ sum_n32:
     mov %ebx %ebp
     sub %ebx 4
     sd %ebx %eax
+.L_for_inc_38:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -1386,8 +1718,8 @@ sum_n32:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_for_start_36
-.L_for_end_36:
+ jmp .L_for_start_38
+.L_for_end_38:
     mov %ebx %ebp
     sub %ebx 4
     ld %ebx %eax
@@ -1413,7 +1745,7 @@ sum_n16:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-.L_for_start_39:
+.L_for_start_41:
     mov %ebx %ebp
     add %ebx 12
     ld %ebx %eax
@@ -1423,14 +1755,14 @@ sum_n16:
     ld %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_41
+ jl .L_comp_true_43
  mov %eax 0 ; False
- jmp .L_comp_end_41
-.L_comp_true_41:
+ jmp .L_comp_end_43
+.L_comp_true_43:
  mov %eax 1 ; True
-.L_comp_end_41:
-        cmp %eax 0
-        je .L_for_end_39
+.L_comp_end_43:
+ cmp %eax 0
+ je .L_for_end_41
     mov %ebx %ebp
     sub %ebx 8
     ld %ebx %eax
@@ -1456,6 +1788,7 @@ sum_n16:
     mov %ebx %ebp
     sub %ebx 4
     sd %ebx %eax
+.L_for_inc_41:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -1468,8 +1801,8 @@ sum_n16:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_for_start_39
-.L_for_end_39:
+ jmp .L_for_start_41
+.L_for_end_41:
     mov %ebx %ebp
     sub %ebx 4
     ld %ebx %eax
@@ -1495,7 +1828,7 @@ sum_char:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-.L_for_start_42:
+.L_for_start_44:
     mov %ebx %ebp
     add %ebx 12
     ld %ebx %eax
@@ -1505,14 +1838,14 @@ sum_char:
     ld %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_44
+ jl .L_comp_true_46
  mov %eax 0 ; False
- jmp .L_comp_end_44
-.L_comp_true_44:
+ jmp .L_comp_end_46
+.L_comp_true_46:
  mov %eax 1 ; True
-.L_comp_end_44:
-        cmp %eax 0
-        je .L_for_end_42
+.L_comp_end_46:
+ cmp %eax 0
+ je .L_for_end_44
     mov %ebx %ebp
     sub %ebx 8
     ld %ebx %eax
@@ -1538,6 +1871,7 @@ sum_char:
     mov %ebx %ebp
     sub %ebx 4
     sd %ebx %eax
+.L_for_inc_44:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -1550,8 +1884,8 @@ sum_char:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_for_start_42
-.L_for_end_42:
+ jmp .L_for_start_44
+.L_for_end_44:
     mov %ebx %ebp
     sub %ebx 4
     ld %ebx %eax
@@ -1564,7 +1898,7 @@ sum_char:
 printf:
     psh %ebp
     mov %ebp %esp
-    sub %esp 17 ; Allocate space for ALL local variables
+    sub %esp 21 ; Allocate space for ALL local variables
     mov %ebx %ebp
     add %ebx 8
     ld %ebx %eax
@@ -1584,7 +1918,7 @@ printf:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-.L_while_start_45:
+.L_while_start_47:
     mov %eax 0
  psh %eax
     mov %ebx %ebp
@@ -1595,15 +1929,15 @@ printf:
     lb %ebx %eax ; Загружаем значение по адресу из %ebx
  pop %ebx
  cmp %eax %ebx
- jne .L_comp_true_47
+ jne .L_comp_true_49
  mov %eax 0 ; False
- jmp .L_comp_end_47
-.L_comp_true_47:
+ jmp .L_comp_end_49
+.L_comp_true_49:
  mov %eax 1 ; True
-.L_comp_end_47:
-        cmp %eax 0
-        je .L_while_end_45 ; Jump to end if condition is false
-        ; --- while-body ---
+.L_comp_end_49:
+ cmp %eax 0
+ je .L_while_end_47 ; Jump to end if condition is false
+ ; --- while-body ---
     mov %eax 37
  psh %eax
     mov %ebx %ebp
@@ -1614,14 +1948,14 @@ printf:
     lb %ebx %eax ; Загружаем значение по адресу из %ebx
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_50
+ je .L_comp_true_52
  mov %eax 0 ; False
- jmp .L_comp_end_50
-.L_comp_true_50:
+ jmp .L_comp_end_52
+.L_comp_true_52:
  mov %eax 1 ; True
-.L_comp_end_50:
+.L_comp_end_52:
         cmp %eax 0
-        je .L_else_48 ; Jump to else if condition is false
+        je .L_else_50 ; Jump to else if condition is false
         ; --- if-body ---
     mov %eax 1
  psh %eax
@@ -1646,7 +1980,7 @@ printf:
         mov %ebx %eax ; Move match expression value to EBX for comparison
         pop %eax ; Restore case value to EAX for comparison
         cmp %eax %ebx
-        je .L_block_body_52_0
+        je .L_block_body_54_0
     mov %eax 115
         psh %eax ; Save case value
     mov %ebx %ebp
@@ -1658,7 +1992,7 @@ printf:
         mov %ebx %eax ; Move match expression value to EBX for comparison
         pop %eax ; Restore case value to EAX for comparison
         cmp %eax %ebx
-        je .L_block_body_52_1
+        je .L_block_body_54_1
     mov %eax 99
         psh %eax ; Save case value
     mov %ebx %ebp
@@ -1670,9 +2004,21 @@ printf:
         mov %ebx %eax ; Move match expression value to EBX for comparison
         pop %eax ; Restore case value to EAX for comparison
         cmp %eax %ebx
-        je .L_block_body_52_2
-        jmp .L_block_body_52_3
-.L_block_body_52_0:
+        je .L_block_body_54_2
+    mov %eax 102
+        psh %eax ; Save case value
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+        mov %ebx %eax ; Move match expression value to EBX for comparison
+        pop %eax ; Restore case value to EAX for comparison
+        cmp %eax %ebx
+        je .L_block_body_54_3
+        jmp .L_block_body_54_4
+.L_block_body_54_0:
     mov %ebx %ebp
     sub %ebx 8
     ld %ebx %eax
@@ -1701,8 +2047,8 @@ printf:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_match_end_51
-.L_block_body_52_1:
+        jmp .L_match_end_53
+.L_block_body_54_1:
     mov %ebx %ebp
     sub %ebx 8
     ld %ebx %eax
@@ -1731,8 +2077,8 @@ printf:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_match_end_51
-.L_block_body_52_2:
+        jmp .L_match_end_53
+.L_block_body_54_2:
     mov %ebx %ebp
     sub %ebx 8
     ld %ebx %eax
@@ -1762,8 +2108,38 @@ printf:
     mov %ebx %ebp
     sub %ebx 8
     sd %ebx %eax
-        jmp .L_match_end_51
-.L_block_body_52_3:
+        jmp .L_match_end_53
+.L_block_body_54_3:
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    ld %ebx %eax ; Загружаем значение по адресу из %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 21
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 21
+    ld %ebx %eax
+ psh %eax
+ jsr print_float
+ add %esp 4
+    mov %eax 4
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+        jmp .L_match_end_53
+.L_block_body_54_4:
     mov %eax 37
  psh %eax
  jsr print_char
@@ -1777,9 +2153,9 @@ printf:
  psh %eax
  jsr print_char
  add %esp 4
-.L_match_end_51:
-        jmp .L_endif_48 ; End of if-body
-.L_else_48:
+.L_match_end_53:
+        jmp .L_endif_50 ; End of if-body
+.L_else_50:
         ; --- else-body ---
     mov %ebx %ebp
     sub %ebx 4
@@ -1790,7 +2166,7 @@ printf:
  psh %eax
  jsr print_char
  add %esp 4
-.L_endif_48:
+.L_endif_50:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -1803,8 +2179,8 @@ printf:
     mov %ebx %ebp
     sub %ebx 4
     sd %ebx %eax
-        jmp .L_while_start_45
-.L_while_end_45:
+ jmp .L_while_start_47
+.L_while_end_47:
 .L_ret_printf:
     mov %eax 0 ; Default return value
     mov %esp %ebp
@@ -1817,8 +2193,8 @@ sleep:
     mov %ebx %ebp
     add %ebx 8
     ld %ebx %eax
- mov %e8 %eax
- mov %edx %e8
+ mov %e12 %eax
+ mov %edx %e12
  int $22
 .L_ret_sleep:
     mov %eax 0 ; Default return value
@@ -1848,7 +2224,7 @@ getkey:
     mov %ebx %ebp
     sub %ebx 6
     sb %ebx %eax
-.L_while_start_52:
+.L_while_start_54:
     mov %eax 0
  psh %eax
     mov %ebx %ebp
@@ -1857,15 +2233,15 @@ getkey:
     lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_54
+ je .L_comp_true_56
  mov %eax 0 ; False
- jmp .L_comp_end_54
-.L_comp_true_54:
+ jmp .L_comp_end_56
+.L_comp_true_56:
  mov %eax 1 ; True
-.L_comp_end_54:
-        cmp %eax 0
-        je .L_while_end_52 ; Jump to end if condition is false
-        ; --- while-body ---
+.L_comp_end_56:
+ cmp %eax 0
+ je .L_while_end_54 ; Jump to end if condition is false
+ ; --- while-body ---
     mov %eax 10
  psh %eax
  jsr sleep
@@ -1876,7 +2252,7 @@ getkey:
     mov %ebx %ebp
     sub %ebx 8
     sw %ebx %eax
-.L_for_start_55:
+.L_for_start_57:
     mov %eax 6
  psh %eax
     mov %ebx %ebp
@@ -1885,14 +2261,14 @@ getkey:
     lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_57
+ jl .L_comp_true_59
  mov %eax 0 ; False
- jmp .L_comp_end_57
-.L_comp_true_57:
+ jmp .L_comp_end_59
+.L_comp_true_59:
  mov %eax 1 ; True
-.L_comp_end_57:
-        cmp %eax 0
-        je .L_for_end_55
+.L_comp_end_59:
+ cmp %eax 0
+ je .L_for_end_57
     mov %ebx %ebp
     sub %ebx 8
     mov %eax 0
@@ -1916,14 +2292,14 @@ getkey:
     lb %ebx %eax ; Загружаем значение по адресу из %ebx
  pop %ebx
  cmp %eax %ebx
- jne .L_comp_true_60
+ jne .L_comp_true_62
  mov %eax 0 ; False
- jmp .L_comp_end_60
-.L_comp_true_60:
+ jmp .L_comp_end_62
+.L_comp_true_62:
  mov %eax 1 ; True
-.L_comp_end_60:
+.L_comp_end_62:
         cmp %eax 0
-        je .L_endif_58 ; Jump to end if condition is false
+        je .L_endif_60 ; Jump to end if condition is false
         ; --- if-body ---
     mov %eax 229
  psh %eax
@@ -1935,14 +2311,14 @@ getkey:
     lb %ebx %eax ; Загружаем значение по адресу из %ebx
  pop %ebx
  cmp %eax %ebx
- jne .L_comp_true_63
+ jne .L_comp_true_65
  mov %eax 0 ; False
- jmp .L_comp_end_63
-.L_comp_true_63:
+ jmp .L_comp_end_65
+.L_comp_true_65:
  mov %eax 1 ; True
-.L_comp_end_63:
+.L_comp_end_65:
         cmp %eax 0
-        je .L_endif_61 ; Jump to end if condition is false
+        je .L_endif_63 ; Jump to end if condition is false
         ; --- if-body ---
     mov %eax 0
  psh %eax
@@ -1954,14 +2330,14 @@ getkey:
     lb %ebx %eax ; Загружаем значение по адресу из %ebx
  pop %ebx
  cmp %eax %ebx
- jne .L_comp_true_66
+ jne .L_comp_true_68
  mov %eax 0 ; False
- jmp .L_comp_end_66
-.L_comp_true_66:
+ jmp .L_comp_end_68
+.L_comp_true_68:
  mov %eax 1 ; True
-.L_comp_end_66:
+.L_comp_end_68:
         cmp %eax 0
-        je .L_endif_64 ; Jump to end if condition is false
+        je .L_endif_66 ; Jump to end if condition is false
         ; --- if-body ---
     mov %ebx %ebp
     sub %ebx 4
@@ -1980,12 +2356,13 @@ getkey:
     mov %ebx %ebp
     sub %ebx 6
     sb %ebx %eax
-        jmp .L_endif_64 ; End of if-body
-.L_endif_64:
-        jmp .L_endif_61 ; End of if-body
-.L_endif_61:
-        jmp .L_endif_58 ; End of if-body
-.L_endif_58:
+        jmp .L_endif_66 ; End of if-body
+.L_endif_66:
+        jmp .L_endif_63 ; End of if-body
+.L_endif_63:
+        jmp .L_endif_60 ; End of if-body
+.L_endif_60:
+.L_for_inc_57:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -1999,10 +2376,10 @@ getkey:
     mov %ebx %ebp
     sub %ebx 8
     sw %ebx %eax
-        jmp .L_for_start_55
-.L_for_end_55:
-        jmp .L_while_start_52
-.L_while_end_52:
+ jmp .L_for_start_57
+.L_for_end_57:
+ jmp .L_while_start_54
+.L_while_end_54:
     mov %ebx %ebp
     sub %ebx 5
     mov %eax 0
@@ -2029,7 +2406,7 @@ is_shift_pressed:
     mov %ebx %ebp
     sub %ebx 6
     sw %ebx %eax
-.L_for_start_67:
+.L_for_start_69:
     mov %eax 6
  psh %eax
     mov %ebx %ebp
@@ -2038,14 +2415,14 @@ is_shift_pressed:
     lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_69
+ jl .L_comp_true_71
  mov %eax 0 ; False
- jmp .L_comp_end_69
-.L_comp_true_69:
+ jmp .L_comp_end_71
+.L_comp_true_71:
  mov %eax 1 ; True
-.L_comp_end_69:
-        cmp %eax 0
-        je .L_for_end_67
+.L_comp_end_71:
+ cmp %eax 0
+ je .L_for_end_69
     mov %ebx %ebp
     sub %ebx 6
     mov %eax 0
@@ -2070,7 +2447,7 @@ is_shift_pressed:
         mov %ebx %eax ; Move match expression value to EBX for comparison
         pop %eax ; Restore case value to EAX for comparison
         cmp %eax %ebx
-        je .L_block_body_71_0
+        je .L_block_body_73_0
     mov %eax 229
         psh %eax ; Save case value
     mov %ebx %ebp
@@ -2082,17 +2459,18 @@ is_shift_pressed:
         mov %ebx %eax ; Move match expression value to EBX for comparison
         pop %eax ; Restore case value to EAX for comparison
         cmp %eax %ebx
-        je .L_block_body_71_1
-        jmp .L_match_end_70
-.L_block_body_71_0:
+        je .L_block_body_73_1
+        jmp .L_match_end_72
+.L_block_body_73_0:
     mov %eax 1
     jmp .L_ret_is_shift_pressed
-        jmp .L_match_end_70
-.L_block_body_71_1:
+        jmp .L_match_end_72
+.L_block_body_73_1:
     mov %eax 1
     jmp .L_ret_is_shift_pressed
-        jmp .L_match_end_70
-.L_match_end_70:
+        jmp .L_match_end_72
+.L_match_end_72:
+.L_for_inc_69:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -2106,8 +2484,8 @@ is_shift_pressed:
     mov %ebx %ebp
     sub %ebx 6
     sw %ebx %eax
-        jmp .L_for_start_67
-.L_for_end_67:
+ jmp .L_for_start_69
+.L_for_end_69:
     mov %eax 0
     jmp .L_ret_is_shift_pressed
 .L_ret_is_shift_pressed:
@@ -2137,7 +2515,7 @@ key_in_buffer:
     mov %ebx %ebp
     sub %ebx 7
     sw %ebx %eax
-.L_for_start_71:
+.L_for_start_73:
     mov %eax 6
  psh %eax
     mov %ebx %ebp
@@ -2146,14 +2524,14 @@ key_in_buffer:
     lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_73
+ jl .L_comp_true_75
  mov %eax 0 ; False
- jmp .L_comp_end_73
-.L_comp_true_73:
+ jmp .L_comp_end_75
+.L_comp_true_75:
  mov %eax 1 ; True
-.L_comp_end_73:
-        cmp %eax 0
-        je .L_for_end_71
+.L_comp_end_75:
+ cmp %eax 0
+ je .L_for_end_73
     mov %ebx %ebp
     sub %ebx 7
     mov %eax 0
@@ -2180,14 +2558,14 @@ key_in_buffer:
     lb %ebx %eax ; Загружаем значение по адресу из %ebx
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_76
+ je .L_comp_true_78
  mov %eax 0 ; False
- jmp .L_comp_end_76
-.L_comp_true_76:
+ jmp .L_comp_end_78
+.L_comp_true_78:
  mov %eax 1 ; True
-.L_comp_end_76:
+.L_comp_end_78:
         cmp %eax 0
-        je .L_endif_74 ; Jump to end if condition is false
+        je .L_endif_76 ; Jump to end if condition is false
         ; --- if-body ---
     mov %eax 1
     psh %eax ; Save expression result
@@ -2195,8 +2573,9 @@ key_in_buffer:
     mov %ebx %ebp
     sub %ebx 5
     sb %ebx %eax
-        jmp .L_endif_74 ; End of if-body
-.L_endif_74:
+        jmp .L_endif_76 ; End of if-body
+.L_endif_76:
+.L_for_inc_73:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -2210,8 +2589,8 @@ key_in_buffer:
     mov %ebx %ebp
     sub %ebx 7
     sw %ebx %eax
-        jmp .L_for_start_71
-.L_for_end_71:
+ jmp .L_for_start_73
+.L_for_end_73:
     mov %ebx %ebp
     sub %ebx 5
     mov %eax 0
@@ -2231,28 +2610,28 @@ char_to_scancode:
  sub %esi 57
  mov %egi __str_init_0
  mov %ecx 54
-.L_strcpy_77:
+.L_strcpy_79:
  lb %egi %eax
  sb %esi %eax
- lp .L_strcpy_77
+ lp .L_strcpy_79
  ; --- Initialize array 'shifted_chars' from __str_init_1 ---
  mov %esi %ebp
  sub %esi 114
  mov %egi __str_init_1
  mov %ecx 54
-.L_strcpy_78:
+.L_strcpy_80:
  lb %egi %eax
  sb %esi %eax
- lp .L_strcpy_78
+ lp .L_strcpy_80
  ; --- Initialize array 'extra' from __str_init_2 ---
  mov %esi %ebp
  sub %esi 140
  mov %egi __str_init_2
  mov %ecx 26
-.L_strcpy_79:
+.L_strcpy_81:
  lb %egi %eax
  sb %esi %eax
- lp .L_strcpy_79
+ lp .L_strcpy_81
     mov %eax 0
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
@@ -2271,7 +2650,7 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 150
     sd %ebx %eax
-.L_for_start_80:
+.L_for_start_82:
     mov %eax 57 ; .length of layout_chars
  psh %eax
     mov %ebx %ebp
@@ -2279,14 +2658,14 @@ char_to_scancode:
     ld %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_82
+ jl .L_comp_true_84
  mov %eax 0 ; False
- jmp .L_comp_end_82
-.L_comp_true_82:
+ jmp .L_comp_end_84
+.L_comp_true_84:
  mov %eax 1 ; True
-.L_comp_end_82:
-        cmp %eax 0
-        je .L_for_end_80
+.L_comp_end_84:
+ cmp %eax 0
+ je .L_for_end_82
     mov %ebx %ebp
     sub %ebx 150
     ld %ebx %eax
@@ -2307,14 +2686,14 @@ char_to_scancode:
     lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_85
+ je .L_comp_true_87
  mov %eax 0 ; False
- jmp .L_comp_end_85
-.L_comp_true_85:
+ jmp .L_comp_end_87
+.L_comp_true_87:
  mov %eax 1 ; True
-.L_comp_end_85:
+.L_comp_end_87:
         cmp %eax 0
-        je .L_endif_83 ; Jump to end if condition is false
+        je .L_endif_85 ; Jump to end if condition is false
         ; --- if-body ---
     mov %eax 0
     psh %eax ; Save expression result
@@ -2330,8 +2709,9 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 142
     sb %ebx %eax
-        jmp .L_endif_83 ; End of if-body
-.L_endif_83:
+        jmp .L_endif_85 ; End of if-body
+.L_endif_85:
+.L_for_inc_82:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -2344,15 +2724,15 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 150
     sd %ebx %eax
-        jmp .L_for_start_80
-.L_for_end_80:
+ jmp .L_for_start_82
+.L_for_end_82:
     mov %eax 0
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx %ebp
     sub %ebx 150
     sd %ebx %eax
-.L_for_start_86:
+.L_for_start_88:
     mov %eax 26 ; .length of extra
  psh %eax
     mov %ebx %ebp
@@ -2360,14 +2740,14 @@ char_to_scancode:
     ld %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_88
+ jl .L_comp_true_90
  mov %eax 0 ; False
- jmp .L_comp_end_88
-.L_comp_true_88:
+ jmp .L_comp_end_90
+.L_comp_true_90:
  mov %eax 1 ; True
-.L_comp_end_88:
-        cmp %eax 0
-        je .L_for_end_86
+.L_comp_end_90:
+ cmp %eax 0
+ je .L_for_end_88
     mov %ebx %ebp
     sub %ebx 150
     ld %ebx %eax
@@ -2388,14 +2768,14 @@ char_to_scancode:
     lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_91
+ je .L_comp_true_93
  mov %eax 0 ; False
- jmp .L_comp_end_91
-.L_comp_true_91:
+ jmp .L_comp_end_93
+.L_comp_true_93:
  mov %eax 1 ; True
-.L_comp_end_91:
+.L_comp_end_93:
         cmp %eax 0
-        je .L_endif_89 ; Jump to end if condition is false
+        je .L_endif_91 ; Jump to end if condition is false
         ; --- if-body ---
     mov %eax 1
     psh %eax ; Save expression result
@@ -2411,8 +2791,9 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 142
     sb %ebx %eax
-        jmp .L_endif_89 ; End of if-body
-.L_endif_89:
+        jmp .L_endif_91 ; End of if-body
+.L_endif_91:
+.L_for_inc_88:
     mov %eax 1
  psh %eax
     mov %ebx %ebp
@@ -2425,8 +2806,8 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 150
     sd %ebx %eax
-        jmp .L_for_start_86
-.L_for_end_86:
+ jmp .L_for_start_88
+.L_for_end_88:
     mov %eax 0
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
@@ -2441,14 +2822,14 @@ char_to_scancode:
     lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_94
+ je .L_comp_true_96
  mov %eax 0 ; False
- jmp .L_comp_end_94
-.L_comp_true_94:
+ jmp .L_comp_end_96
+.L_comp_true_96:
  mov %eax 1 ; True
-.L_comp_end_94:
+.L_comp_end_96:
         cmp %eax 0
-        je .L_else_92 ; Jump to else if condition is false
+        je .L_else_94 ; Jump to else if condition is false
         ; --- if-body ---
     mov %eax 4
  psh %eax
@@ -2463,8 +2844,8 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 151
     sb %ebx %eax
-        jmp .L_endif_92 ; End of if-body
-.L_else_92:
+        jmp .L_endif_94 ; End of if-body
+.L_else_94:
         ; --- else-body ---
     mov %eax 57
  psh %eax
@@ -2479,7 +2860,7 @@ char_to_scancode:
     mov %ebx %ebp
     sub %ebx 151
     sb %ebx %eax
-.L_endif_92:
+.L_endif_94:
     mov %ebx %ebp
     sub %ebx 151
     mov %eax 0
@@ -2511,28 +2892,28 @@ getchar:
  sub %esi 59
  mov %egi __str_init_3
  mov %ecx 54
-.L_strcpy_95:
+.L_strcpy_97:
  lb %egi %eax
  sb %esi %eax
- lp .L_strcpy_95
+ lp .L_strcpy_97
  ; --- Initialize array 'shifted_chars' from __str_init_4 ---
  mov %esi %ebp
  sub %esi 116
  mov %egi __str_init_4
  mov %ecx 54
-.L_strcpy_96:
+.L_strcpy_98:
  lb %egi %eax
  sb %esi %eax
- lp .L_strcpy_96
+ lp .L_strcpy_98
  ; --- Initialize array 'extra' from __str_init_5 ---
  mov %esi %ebp
  sub %esi 142
  mov %egi __str_init_5
  mov %ecx 26
-.L_strcpy_97:
+.L_strcpy_99:
  lb %egi %eax
  sb %esi %eax
- lp .L_strcpy_97
+ lp .L_strcpy_99
     mov %eax 57
  psh %eax
     mov %ebx %ebp
@@ -2541,14 +2922,14 @@ getchar:
     lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_100
+ jl .L_comp_true_102
  mov %eax 0 ; False
- jmp .L_comp_end_100
-.L_comp_true_100:
+ jmp .L_comp_end_102
+.L_comp_true_102:
  mov %eax 1 ; True
-.L_comp_end_100:
+.L_comp_end_102:
         cmp %eax 0
-        je .L_else_98 ; Jump to else if condition is false
+        je .L_else_100 ; Jump to else if condition is false
         ; --- if-body ---
     mov %eax 4
  psh %eax
@@ -2579,14 +2960,14 @@ getchar:
     lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_103
+ je .L_comp_true_105
  mov %eax 0 ; False
- jmp .L_comp_end_103
-.L_comp_true_103:
+ jmp .L_comp_end_105
+.L_comp_true_105:
  mov %eax 1 ; True
-.L_comp_end_103:
+.L_comp_end_105:
         cmp %eax 0
-        je .L_else_101 ; Jump to else if condition is false
+        je .L_else_103 ; Jump to else if condition is false
         ; --- if-body ---
     mov %ebx %ebp
     sub %ebx 145
@@ -2607,8 +2988,8 @@ getchar:
     mov %ebx %ebp
     sub %ebx 2
     sb %ebx %eax
-        jmp .L_endif_101 ; End of if-body
-.L_else_101:
+        jmp .L_endif_103 ; End of if-body
+.L_else_103:
         ; --- else-body ---
     mov %ebx %ebp
     sub %ebx 145
@@ -2629,9 +3010,9 @@ getchar:
     mov %ebx %ebp
     sub %ebx 2
     sb %ebx %eax
-.L_endif_101:
-        jmp .L_endif_98 ; End of if-body
-.L_else_98:
+.L_endif_103:
+        jmp .L_endif_100 ; End of if-body
+.L_else_100:
         ; --- else-body ---
     mov %eax 57
  psh %eax
@@ -2667,7 +3048,7 @@ getchar:
     mov %ebx %ebp
     sub %ebx 2
     sb %ebx %eax
-.L_endif_98:
+.L_endif_100:
     mov %ebx %ebp
     sub %ebx 2
     mov %eax 0
@@ -2681,7 +3062,26 @@ getchar:
 confirm_exit:
     psh %ebp
     mov %ebp %esp
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    mov %eax 0
+    lb %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_108
+ mov %eax 0 ; False
+ jmp .L_comp_end_108
+.L_comp_true_108:
+ mov %eax 1 ; True
+.L_comp_end_108:
+        cmp %eax 0
+        je .L_endif_106 ; Jump to end if condition is false
+        ; --- if-body ---
  jsr init_text_mode
+        jmp .L_endif_106 ; End of if-body
+.L_endif_106:
  mov %eax __str_init_6
  psh %eax
  jsr printf
@@ -2694,34 +3094,954 @@ confirm_exit:
     pop %ebp
     rts
 
-init_govnos_app:
+strlen:
     psh %ebp
     mov %ebp %esp
+    sub %esp 4 ; Allocate space for ALL local variables
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+.L_while_start_109:
+    mov %eax 0
+ psh %eax
     mov %ebx %ebp
     add %ebx 8
     ld %ebx %eax
- mov %e8 %eax
- mov %eax %e8
- add %eax 4
- ld %eax %ebx
-    mov %eax __var__govnos_ret_address
- mov %e8 %eax
- sd %e8 %ebx
-.L_ret_init_govnos_app:
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+ pop %ebx
+ cmp %eax %ebx
+ jne .L_comp_true_111
+ mov %eax 0 ; False
+ jmp .L_comp_end_111
+.L_comp_true_111:
+ mov %eax 1 ; True
+.L_comp_end_111:
+ cmp %eax 0
+ je .L_while_end_109 ; Jump to end if condition is false
+ ; --- while-body ---
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    add %ebx 8
+    sd %ebx %eax
+ jmp .L_while_start_109
+.L_while_end_109:
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    jmp .L_ret_strlen
+.L_ret_strlen:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+_itoa:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 28 ; Allocate space for ALL local variables
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 16
+    sd %ebx %eax
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 20
+    sd %ebx %eax
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_114
+ mov %eax 0 ; False
+ jmp .L_comp_end_114
+.L_comp_true_114:
+ mov %eax 1 ; True
+.L_comp_end_114:
+        cmp %eax 0
+        je .L_endif_112 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %eax 48
+    psh %eax ; Save expression result
+    mov %eax 0
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = базовый адрес (значение указателя)
+    add %ebx %e8   ; %ebx = base_address + offset
+    pop %eax ; Восстанавливаем результат для записи
+    sd %ebx %eax ; Записываем значение по адресу
+    mov %eax 0
+    psh %eax ; Save expression result
+    mov %eax 1
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = базовый адрес (значение указателя)
+    add %ebx %e8   ; %ebx = base_address + offset
+    pop %eax ; Восстанавливаем результат для записи
+    sd %ebx %eax ; Записываем значение по адресу
+    mov %eax 1
+    jmp .L_ret__itoa
+        jmp .L_endif_112 ; End of if-body
+.L_endif_112:
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ jl .L_comp_true_117
+ mov %eax 0 ; False
+ jmp .L_comp_end_117
+.L_comp_true_117:
+ mov %eax 1 ; True
+.L_comp_end_117:
+        cmp %eax 0
+        je .L_endif_115 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %eax 1
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 20
+    sd %ebx %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ not %eax
+ inx %eax
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    add %ebx 8
+    sd %ebx %eax
+        jmp .L_endif_115 ; End of if-body
+.L_endif_115:
+.L_while_start_118:
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ jne .L_comp_true_120
+ mov %eax 0 ; False
+ jmp .L_comp_end_120
+.L_comp_true_120:
+ mov %eax 1 ; True
+.L_comp_end_120:
+ cmp %eax 0
+ je .L_while_end_118 ; Jump to end if condition is false
+ ; --- while-body ---
+    mov %eax 10
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ div %eax %ebx
+ mov %eax %edx ; Remainder is in EDX
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 24
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 24
+    ld %ebx %eax
+ psh %eax
+    mov %eax 48
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    sub %ebx 12
+    add %ebx %e8   ; %ebx = base_address + offset
+    pop %eax ; Восстанавливаем результат для записи
+    sb %ebx %eax ; Записываем значение по адресу
+    mov %eax 10
+ psh %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ div %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    add %ebx 8
+    sd %ebx %eax
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 16
+    sd %ebx %eax
+ jmp .L_while_start_118
+.L_while_end_118:
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 28
+    sd %ebx %eax
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 20
+    ld %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_123
+ mov %eax 0 ; False
+ jmp .L_comp_end_123
+.L_comp_true_123:
+ mov %eax 1 ; True
+.L_comp_end_123:
+        cmp %eax 0
+        je .L_endif_121 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %eax 45
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 28
+    ld %ebx %eax
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = базовый адрес (значение указателя)
+    add %ebx %e8   ; %ebx = base_address + offset
+    pop %eax ; Восстанавливаем результат для записи
+    sd %ebx %eax ; Записываем значение по адресу
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 28
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 28
+    sd %ebx %eax
+        jmp .L_endif_121 ; End of if-body
+.L_endif_121:
+.L_while_start_124:
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ jg .L_comp_true_126
+ mov %eax 0 ; False
+ jmp .L_comp_end_126
+.L_comp_true_126:
+ mov %eax 1 ; True
+.L_comp_end_126:
+ cmp %eax 0
+ je .L_while_end_124 ; Jump to end if condition is false
+ ; --- while-body ---
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+ pop %ebx
+ not %ebx
+ inx %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 16
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    sub %ebx 12
+    add %ebx %e8   ; %ebx = base_address + offset
+    mov %eax 0
+    lb %ebx %eax ; Load value from address
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 28
+    ld %ebx %eax
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = базовый адрес (значение указателя)
+    add %ebx %e8   ; %ebx = base_address + offset
+    pop %eax ; Восстанавливаем результат для записи
+    sd %ebx %eax ; Записываем значение по адресу
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 28
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 28
+    sd %ebx %eax
+ jmp .L_while_start_124
+.L_while_end_124:
+    mov %eax 0
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 28
+    ld %ebx %eax
+    psh %ebx       ; Сохраняем %ebx
+    mov %ebx 1
+    mul %eax %ebx  ; eax = offset
+    mov %e8 %eax   ; Сохраняем offset в %e8
+    pop %ebx       ; Восстанавливаем %ebx
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = базовый адрес (значение указателя)
+    add %ebx %e8   ; %ebx = base_address + offset
+    pop %eax ; Восстанавливаем результат для записи
+    sd %ebx %eax ; Записываем значение по адресу
+    mov %ebx %ebp
+    sub %ebx 28
+    ld %ebx %eax
+    jmp .L_ret__itoa
+.L_ret__itoa:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+sprintf:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 24 ; Allocate space for ALL local variables
+    mov %ebx %ebp
+    add %ebx 12
+    ld %ebx %eax
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %ebx %ebp
+    add %ebx 8
+    ld %ebx %eax
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+    mov %eax 4
+ psh %eax
+    mov %eax %ebp
+    add %eax 12
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 12
+    sd %ebx %eax
+.L_while_start_127:
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+ pop %ebx
+ cmp %eax %ebx
+ jne .L_comp_true_129
+ mov %eax 0 ; False
+ jmp .L_comp_end_129
+.L_comp_true_129:
+ mov %eax 1 ; True
+.L_comp_end_129:
+ cmp %eax 0
+ je .L_while_end_127 ; Jump to end if condition is false
+ ; --- while-body ---
+    mov %eax 37
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_132
+ mov %eax 0 ; False
+ jmp .L_comp_end_132
+.L_comp_true_132:
+ mov %eax 1 ; True
+.L_comp_end_132:
+        cmp %eax 0
+        je .L_else_130 ; Jump to else if condition is false
+        ; --- if-body ---
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %eax 115
+        psh %eax ; Save case value
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+        mov %ebx %eax ; Move match expression value to EBX for comparison
+        pop %eax ; Restore case value to EAX for comparison
+        cmp %eax %ebx
+        je .L_block_body_134_0
+    mov %eax 105
+        psh %eax ; Save case value
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+        mov %ebx %eax ; Move match expression value to EBX for comparison
+        pop %eax ; Restore case value to EAX for comparison
+        cmp %eax %ebx
+        je .L_block_body_134_1
+        jmp .L_block_body_134_2
+.L_block_body_134_0:
+    mov %ebx %ebp
+    sub %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    ld %ebx %eax ; Загружаем значение по адресу из %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 16
+    sd %ebx %eax
+.L_while_start_134:
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+ pop %ebx
+ cmp %eax %ebx
+ jne .L_comp_true_136
+ mov %eax 0 ; False
+ jmp .L_comp_end_136
+.L_comp_true_136:
+ mov %eax 1 ; True
+.L_comp_end_136:
+ cmp %eax 0
+ je .L_while_end_134 ; Jump to end if condition is false
+ ; --- while-body ---
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = адрес для записи
+    pop %eax       ; %eax = значение для записи
+    sb %ebx %eax ; Записываем значение по разыменованному указателю
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 16
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 16
+    sd %ebx %eax
+ jmp .L_while_start_134
+.L_while_end_134:
+    mov %eax 4
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 12
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 12
+    sd %ebx %eax
+        jmp .L_match_end_133
+.L_block_body_134_1:
+    mov %ebx %ebp
+    sub %ebx 12
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    ld %ebx %eax ; Загружаем значение по адресу из %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 20
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 20
+    ld %ebx %eax
+ psh %eax
+ jsr _itoa
+ add %esp 8
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 24
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 24
+    ld %ebx %eax
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+    mov %eax 4
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 12
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 12
+    sd %ebx %eax
+        jmp .L_match_end_133
+.L_block_body_134_2:
+    mov %eax 37
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = адрес для записи
+    pop %eax       ; %eax = значение для записи
+    sb %ebx %eax ; Записываем значение по разыменованному указателю
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = адрес для записи
+    pop %eax       ; %eax = значение для записи
+    sb %ebx %eax ; Записываем значение по разыменованному указателю
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+.L_match_end_133:
+        jmp .L_endif_130 ; End of if-body
+.L_else_130:
+        ; --- else-body ---
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = адрес для записи
+    pop %eax       ; %eax = значение для записи
+    sb %ebx %eax ; Записываем значение по разыменованному указателю
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sd %ebx %eax
+.L_endif_130:
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+ pop %ebx
+ add %eax %ebx
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+ jmp .L_while_start_127
+.L_while_end_127:
+    mov %eax 0
+    psh %eax ; Save expression result
+    mov %ebx %ebp
+    sub %ebx 8
+    ld %ebx %eax
+    mov %ebx %eax  ; %ebx = адрес для записи
+    pop %eax       ; %eax = значение для записи
+    sb %ebx %eax ; Записываем значение по разыменованному указателю
+.L_ret_sprintf:
     mov %eax 0 ; Default return value
     mov %esp %ebp
     pop %ebp
     rts
 
-exit_to_shell:
+get_mouse_x:
     psh %ebp
     mov %ebp %esp
-    mov %eax __var__govnos_ret_address
- mov %e8 %eax
- ld %e8 %edx
- psh %edx
- rts
-.L_ret_exit_to_shell:
+    mov %ebx __var_coord_ptr
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lw %ebx %eax ; Загружаем значение по адресу из %ebx
+    jmp .L_ret_get_mouse_x
+.L_ret_get_mouse_x:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+get_mouse_y:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 4 ; Allocate space for ALL local variables
+    mov %eax 4718594
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 4
+    sd %ebx %eax
+    mov %ebx %ebp
+    sub %ebx 4
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lw %ebx %eax ; Загружаем значение по адресу из %ebx
+    jmp .L_ret_get_mouse_y
+.L_ret_get_mouse_y:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+is_left_button_pressed:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 1 ; Allocate space for ALL local variables
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 1
+    sb %ebx %eax
+ mov %e10 $480004
+ lb %e10 %eax
+ and %eax 2
+ cmp %eax 0
+ jne .L_left_pressed
+ jmp .L_left_end
+ .L_left_pressed:
+ mov %e11 1
+    mov %eax %ebp
+    sub %eax 1
+ mov %e12 %eax
+ sb %e12 %e11
+ .L_left_end:
+    mov %ebx %ebp
+    sub %ebx 1
+    mov %eax 0
+    lb %ebx %eax
+    jmp .L_ret_is_left_button_pressed
+.L_ret_is_left_button_pressed:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+is_right_button_pressed:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 1 ; Allocate space for ALL local variables
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 1
+    sb %ebx %eax
+ mov %e10 $480004
+ lb %e10 %eax
+ and %eax 8
+ cmp %eax 0
+ jne .L_right_pressed
+ jmp .L_right_end
+ .L_right_pressed:
+ mov %e11 1
+    mov %eax %ebp
+    sub %eax 1
+ mov %e12 %eax
+ sb %e12 %e11
+ .L_right_end:
+    mov %ebx %ebp
+    sub %ebx 1
+    mov %eax 0
+    lb %ebx %eax
+    jmp .L_ret_is_right_button_pressed
+.L_ret_is_right_button_pressed:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+is_middle_button_pressed:
+    psh %ebp
+    mov %ebp %esp
+    sub %esp 1 ; Allocate space for ALL local variables
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 1
+    sb %ebx %eax
+ mov %e10 $480004
+ lb %e10 %eax
+ and %eax 4
+ cmp %eax 0
+ jne .L_middle_pressed
+ jmp .L_middle_end
+ .L_middle_pressed:
+ mov %e11 1
+    mov %eax %ebp
+    sub %eax 1
+ mov %e12 %eax
+ sb %e12 %e11
+ .L_middle_end:
+    mov %ebx %ebp
+    sub %ebx 1
+    mov %eax 0
+    lb %ebx %eax
+    jmp .L_ret_is_middle_button_pressed
+.L_ret_is_middle_button_pressed:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+is_scrolled_up:
+    psh %ebp
+    mov %ebp %esp
+    mov %eax 1
+ psh %eax
+    mov %ebx __var_buttons_ptr
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_139
+ mov %eax 0 ; False
+ jmp .L_comp_end_139
+.L_comp_true_139:
+ mov %eax 1 ; True
+.L_comp_end_139:
+        cmp %eax 0
+        je .L_endif_137 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %eax 1
+    jmp .L_ret_is_scrolled_up
+        jmp .L_endif_137 ; End of if-body
+.L_endif_137:
+    mov %eax 0
+    jmp .L_ret_is_scrolled_up
+.L_ret_is_scrolled_up:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+is_scrolled_down:
+    psh %ebp
+    mov %ebp %esp
+    mov %eax 255
+ psh %eax
+    mov %ebx __var_buttons_ptr
+    ld %ebx %eax
+    mov %ebx %eax ; EBX теперь хранит адрес для чтения
+    mov %eax 0
+    lb %ebx %eax ; Загружаем значение по адресу из %ebx
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_142
+ mov %eax 0 ; False
+ jmp .L_comp_end_142
+.L_comp_true_142:
+ mov %eax 1 ; True
+.L_comp_end_142:
+        cmp %eax 0
+        je .L_endif_140 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %eax 1
+    jmp .L_ret_is_scrolled_down
+        jmp .L_endif_140 ; End of if-body
+.L_endif_140:
+    mov %eax 0
+    jmp .L_ret_is_scrolled_down
+.L_ret_is_scrolled_down:
+    mov %esp %ebp
+    pop %ebp
+    rts
+
+reset_scroll_state:
+    psh %ebp
+    mov %ebp %esp
+ mov %e10 $480004
+ mov %eax $00
+ sb %e10 %eax
+.L_ret_reset_scroll_state:
     mov %eax 0 ; Default return value
     mov %esp %ebp
     pop %ebp
@@ -2730,8 +4050,10 @@ exit_to_shell:
 _start:
     psh %ebp
     mov %ebp %esp
-    sub %esp 4 ; Allocate space for ALL local variables
-     mov %eax 0
+    sub %esp 10 ; Allocate space for ALL local variables
+ 
+; --- BEGIN Global Variable Initialization ---
+    mov %eax 0
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var_text_ptr
@@ -2766,10 +4088,15 @@ _start:
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var_cursor_y
     sb %ebx %eax
-    mov %eax 7
+    mov %eax 15
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var__current_character_color
+    sb %ebx %eax
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var__current_background_color
     sb %ebx %eax
     mov %eax 80
     psh %eax ; Save expression result
@@ -2781,786 +4108,124 @@ _start:
     pop %eax ; Восстанавливаем результат для записи
     mov %ebx __var_text_screen_height
     sb %ebx %eax
-    mov %eax 0
+    mov %eax 4718592
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var__govnos_ret_address
+    mov %ebx __var_coord_ptr
     sd %ebx %eax
-    mov %eax 0
+    mov %eax 4718596
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_direction
-    sb %ebx %eax
-    mov %eax 40
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_width
-    sb %ebx %eax
-    mov %eax 20
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_height
-    sb %ebx %eax
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_x
-    sw %ebx %eax
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_y
-    sw %ebx %eax
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_x
-    sw %ebx %eax
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_y
-    sw %ebx %eax
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_snakeTailLength
+    mov %ebx __var_buttons_ptr
     sd %ebx %eax
-    mov %eax 0
+    mov %eax 2
     psh %eax ; Save expression result
     pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_score
-    sd %ebx %eax
-    mov %eax 1
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_in_loop
+    mov %ebx __var_MOUSE_LEFT_BUTTON
     sb %ebx %eax
+    mov %eax 4
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var_MOUSE_MIDDLE_BUTTON
+    sb %ebx %eax
+    mov %eax 8
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx __var_MOUSE_RIGHT_BUTTON
+    sb %ebx %eax
+; --- END Global Initialization ---
 
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-    mov %eax %ebp
-    sub %eax 4
- mov %e8 %eax
- sd %e8 %ebp
-    mov %ebx %ebp
-    sub %ebx 4
-    ld %ebx %eax
- psh %eax
- jsr init_govnos_app
- add %esp 4
  jsr init_text_mode
-    mov %eax 0
- psh %eax
- jsr clear_screen
- add %esp 4
- jsr init
-.L_while_start_104:
+    mov %eax 41
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 1
+    sb %ebx %eax
+.L_while_start_143:
     mov %eax 1
- psh %eax
-    mov %ebx __var_in_loop
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_106
- mov %eax 0 ; False
- jmp .L_comp_end_106
-.L_comp_true_106:
- mov %eax 1 ; True
-.L_comp_end_106:
-        cmp %eax 0
-        je .L_while_end_104 ; Jump to end if condition is false
-        ; --- while-body ---
- jsr game_loop
-        jmp .L_while_start_104
-.L_while_end_104:
- jsr init_text_mode_beta
-    mov %eax 0
- psh %eax
- jsr clear_screen
- add %esp 4
-    mov %eax 0
- psh %eax
-    mov %eax 0
- psh %eax
- jsr set_cursor_pos
- add %esp 8
- jsr exit_to_shell
-    hlt ; Program end
-
-init:
-    psh %ebp
-    mov %ebp %esp
-    mov %eax 2
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- div %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_x
-    sw %ebx %eax
-    mov %eax 2
- psh %eax
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- div %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_y
-    sw %ebx %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_x
-    sw %ebx %eax
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_y
-    sw %ebx %eax
-.L_while_start_107:
-    mov %eax 0
- psh %eax
-    mov %ebx __var_apple_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_109
- mov %eax 0 ; False
- jmp .L_comp_end_109
-.L_comp_true_109:
- mov %eax 1 ; True
-.L_comp_end_109:
-        cmp %eax 0
-        je .L_while_end_107 ; Jump to end if condition is false
-        ; --- while-body ---
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_x
-    sw %ebx %eax
-        jmp .L_while_start_107
-.L_while_end_107:
-.L_while_start_110:
-    mov %eax 0
- psh %eax
-    mov %ebx __var_apple_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_112
- mov %eax 0 ; False
- jmp .L_comp_end_112
-.L_comp_true_112:
- mov %eax 1 ; True
-.L_comp_end_112:
-        cmp %eax 0
-        je .L_while_end_110 ; Jump to end if condition is false
-        ; --- while-body ---
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_y
-    sw %ebx %eax
-        jmp .L_while_start_110
-.L_while_end_110:
-    mov %eax 97
-    psh %eax ; Save expression result
-    mov %eax 0
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_author
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %eax 114
-    psh %eax ; Save expression result
-    mov %eax 1
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_author
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %eax 116
-    psh %eax ; Save expression result
-    mov %eax 2
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_author
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %eax 105
-    psh %eax ; Save expression result
-    mov %eax 3
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_author
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-.L_ret_init:
-    mov %eax 0 ; Default return value
-    mov %esp %ebp
-    pop %ebp
-    rts
-
-game_loop:
-    psh %ebp
-    mov %ebp %esp
- jsr draw
- jsr key_logic
- jsr update
- jsr get_sleep_time
- psh %eax
- jsr sleep
- add %esp 4
-.L_ret_game_loop:
-    mov %eax 0 ; Default return value
-    mov %esp %ebp
-    pop %ebp
-    rts
-
-get_sleep_time:
-    psh %ebp
-    mov %ebp %esp
-    sub %esp 4 ; Allocate space for ALL local variables
-    mov %eax 10
- psh %eax
-    mov %ebx __var_snakeTailLength
-    ld %ebx %eax
- pop %ebx
- not %ebx
- inx %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-    mov %eax 0
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 4
-    ld %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_115
- mov %eax 0 ; False
- jmp .L_comp_end_115
-.L_comp_true_115:
- mov %eax 1 ; True
-.L_comp_end_115:
-        cmp %eax 0
-        je .L_endif_113 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-        jmp .L_endif_113 ; End of if-body
-.L_endif_113:
-    mov %ebx %ebp
-    sub %ebx 4
-    ld %ebx %eax
- psh %eax
-    mov %eax 50
- pop %ebx
- not %ebx
- inx %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-    mov %eax 0
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 4
-    ld %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jg .L_comp_false_119
- jmp .L_comp_true_118
-.L_comp_false_119:
- mov %eax 0 ; False
- jmp .L_comp_end_118
-.L_comp_true_118:
- mov %eax 1 ; True
-.L_comp_end_118:
-        cmp %eax 0
-        je .L_endif_116 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 1
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-        jmp .L_endif_116 ; End of if-body
-.L_endif_116:
-    mov %ebx %ebp
-    sub %ebx 4
-    ld %ebx %eax
-    jmp .L_ret_get_sleep_time
-.L_ret_get_sleep_time:
-    mov %esp %ebp
-    pop %ebp
-    rts
-
-update:
-    psh %ebp
-    mov %ebp %esp
-    sub %esp 24 ; Allocate space for ALL local variables
-    mov %eax 0
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-    mov %eax 0
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 8
-    sd %ebx %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
-    psh %eax ; Save expression result
-    mov %eax 0
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
-    psh %eax ; Save expression result
-    mov %eax 0
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %eax 1
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 24
-    sd %ebx %eax
-.L_for_start_120:
-    mov %ebx __var_snakeTailLength
-    ld %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_122
- mov %eax 0 ; False
- jmp .L_comp_end_122
-.L_comp_true_122:
- mov %eax 1 ; True
-.L_comp_end_122:
-        cmp %eax 0
-        je .L_for_end_120
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 12
-    sd %ebx %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 16
-    sd %ebx %eax
-    mov %ebx %ebp
-    sub %ebx 4
-    ld %ebx %eax
-    psh %eax ; Save expression result
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %ebx %ebp
-    sub %ebx 8
-    ld %ebx %eax
-    psh %eax ; Save expression result
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %ebx %ebp
-    sub %ebx 12
-    ld %ebx %eax
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sd %ebx %eax
-    mov %ebx %ebp
-    sub %ebx 16
-    ld %ebx %eax
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 8
-    sd %ebx %eax
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 24
-    sd %ebx %eax
-        jmp .L_for_start_120
-.L_for_end_120:
-    mov %eax 0
-        psh %eax ; Save case value
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_124_0
-    mov %eax 1
-        psh %eax ; Save case value
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_124_1
-    mov %eax 2
-        psh %eax ; Save case value
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_124_2
-    mov %eax 3
-        psh %eax ; Save case value
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_124_3
-        jmp .L_match_end_123
-.L_block_body_124_0:
-    mov %eax 1
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- not %ebx
- inx %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_y
-    sw %ebx %eax
-        jmp .L_match_end_123
-.L_block_body_124_1:
-    mov %eax 1
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_y
-    sw %ebx %eax
-        jmp .L_match_end_123
-.L_block_body_124_2:
-    mov %eax 1
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_x
-    sw %ebx %eax
-        jmp .L_match_end_123
-.L_block_body_124_3:
-    mov %eax 1
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- not %ebx
- inx %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_x
-    sw %ebx %eax
-        jmp .L_match_end_123
-.L_match_end_123:
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_false_127
- jmp .L_comp_true_126
-.L_comp_false_127:
- mov %eax 0 ; False
- jmp .L_comp_end_126
-.L_comp_true_126:
- mov %eax 1 ; True
-.L_comp_end_126:
- psh %eax
-    mov %eax 0
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_129
- mov %eax 0 ; False
- jmp .L_comp_end_129
-.L_comp_true_129:
- mov %eax 1 ; True
-.L_comp_end_129:
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_false_132
- jmp .L_comp_true_131
-.L_comp_false_132:
- mov %eax 0 ; False
- jmp .L_comp_end_131
-.L_comp_true_131:
- mov %eax 1 ; True
-.L_comp_end_131:
- psh %eax
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_134
- mov %eax 0 ; False
- jmp .L_comp_end_134
-.L_comp_true_134:
- mov %eax 1 ; True
-.L_comp_end_134:
- pop %ebx
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_138
- mov %eax 0 ; False
- jmp .L_comp_end_138
-.L_comp_true_138:
- mov %eax 1 ; True
-.L_comp_end_138:
  cmp %eax 0
- jne .L_logic_true_136
-    mov %ebx __var_width
+ je .L_while_end_143 ; Jump to end if condition is false
+ ; --- while-body ---
+ jsr get_mouse_x
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 3
+    sw %ebx %eax
+ jsr get_mouse_y
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 5
+    sw %ebx %eax
+ jsr is_scrolled_up
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 6
+    sb %ebx %eax
+ jsr is_scrolled_down
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 7
+    sb %ebx %eax
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sb %ebx %eax
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 9
+    sb %ebx %eax
+    mov %eax 0
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 10
+    sb %ebx %eax
+    mov %ebx __var_VGA_COLORS
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'BLACK'
+ psh %eax
+ jsr set_background_color
+ add %esp 4
+    mov %ebx __var_VGA_COLORS
+    add %ebx 15 ; offset for field 'WHITE'
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'WHITE'
+ psh %eax
+ jsr set_character_color
+ add %esp 4
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 7
     mov %eax 0
     lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_false_141
- jmp .L_comp_true_140
-.L_comp_false_141:
+ je .L_comp_true_146
  mov %eax 0 ; False
- jmp .L_comp_end_140
-.L_comp_true_140:
+ jmp .L_comp_end_146
+.L_comp_true_146:
  mov %eax 1 ; True
-.L_comp_end_140:
- cmp %eax 0
- jne .L_logic_true_136
- mov %eax 0
- jmp .L_logic_end_135
-.L_logic_true_136:
- mov %eax 1
-.L_logic_end_135:
- pop %ebx
-    mov %ebx __var_width
+.L_comp_end_146:
+ psh %eax
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 6
     mov %eax 0
     lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_false_146
- jmp .L_comp_true_145
-.L_comp_false_146:
- mov %eax 0 ; False
- jmp .L_comp_end_145
-.L_comp_true_145:
- mov %eax 1 ; True
-.L_comp_end_145:
- psh %eax
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_148
+ je .L_comp_true_148
  mov %eax 0 ; False
  jmp .L_comp_end_148
 .L_comp_true_148:
@@ -3569,1273 +4234,217 @@ update:
  pop %ebx
     mov %eax 0
  psh %eax
-    mov %ebx __var_x
+    mov %ebx %ebp
+    sub %ebx 6
     mov %eax 0
-    lw %ebx %eax
+    lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_152
+ je .L_comp_true_152
  mov %eax 0 ; False
  jmp .L_comp_end_152
 .L_comp_true_152:
  mov %eax 1 ; True
 .L_comp_end_152:
  cmp %eax 0
- jne .L_logic_true_150
-    mov %ebx __var_width
+ je .L_logic_false_150
+    mov %eax 0
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 7
     mov %eax 0
     lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_false_155
- jmp .L_comp_true_154
-.L_comp_false_155:
+ je .L_comp_true_154
  mov %eax 0 ; False
  jmp .L_comp_end_154
 .L_comp_true_154:
  mov %eax 1 ; True
 .L_comp_end_154:
  cmp %eax 0
- jne .L_logic_true_150
- mov %eax 0
- jmp .L_logic_end_149
-.L_logic_true_150:
+ je .L_logic_false_150
  mov %eax 1
+ jmp .L_logic_end_149
+.L_logic_false_150:
+ mov %eax 0
 .L_logic_end_149:
- cmp %eax 0
- jne .L_logic_true_143
-    mov %eax 0
+        cmp %eax 0
+        je .L_endif_144 ; Jump to end if condition is false
+        ; --- if-body ---
+ jsr is_left_button_pressed
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 8
+    sb %ebx %eax
+ jsr is_middle_button_pressed
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 9
+    sb %ebx %eax
+ jsr is_right_button_pressed
+    psh %eax ; Save expression result
+    pop %eax ; Восстанавливаем результат для записи
+    mov %ebx %ebp
+    sub %ebx 10
+    sb %ebx %eax
+    mov %eax 1
  psh %eax
-    mov %ebx __var_y
+    mov %ebx %ebp
+    sub %ebx 8
     mov %eax 0
-    lw %ebx %eax
+    lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_true_157
+ je .L_comp_true_157
  mov %eax 0 ; False
  jmp .L_comp_end_157
 .L_comp_true_157:
  mov %eax 1 ; True
 .L_comp_end_157:
- cmp %eax 0
- jne .L_logic_true_143
- mov %eax 0
- jmp .L_logic_end_142
-.L_logic_true_143:
- mov %eax 1
-.L_logic_end_142:
- pop %ebx
+        cmp %eax 0
+        je .L_endif_155 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %ebx __var_VGA_COLORS
+    add %ebx 1 ; offset for field 'BLUE'
     mov %eax 0
+    lb %ebx %eax ; Load value of field 'BLUE'
  psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_161
- mov %eax 0 ; False
- jmp .L_comp_end_161
-.L_comp_true_161:
- mov %eax 1 ; True
-.L_comp_end_161:
+ jsr set_background_color
+ add %esp 4
+        jmp .L_endif_155 ; End of if-body
+.L_endif_155:
+    mov %eax 1
  psh %eax
-    mov %ebx __var_width
+    mov %ebx %ebp
+    sub %ebx 10
     mov %eax 0
     lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
  pop %ebx
  cmp %eax %ebx
- jl .L_comp_false_164
- jmp .L_comp_true_163
-.L_comp_false_164:
+ je .L_comp_true_160
+ mov %eax 0 ; False
+ jmp .L_comp_end_160
+.L_comp_true_160:
+ mov %eax 1 ; True
+.L_comp_end_160:
+        cmp %eax 0
+        je .L_endif_158 ; Jump to end if condition is false
+        ; --- if-body ---
+    mov %ebx __var_VGA_COLORS
+    add %ebx 4 ; offset for field 'RED'
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'RED'
+ psh %eax
+ jsr set_background_color
+ add %esp 4
+        jmp .L_endif_158 ; End of if-body
+.L_endif_158:
+    mov %eax 1
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 9
+    mov %eax 0
+    lb %ebx %eax
+ pop %ebx
+ cmp %eax %ebx
+ je .L_comp_true_163
  mov %eax 0 ; False
  jmp .L_comp_end_163
 .L_comp_true_163:
  mov %eax 1 ; True
 .L_comp_end_163:
- psh %eax
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_166
- mov %eax 0 ; False
- jmp .L_comp_end_166
-.L_comp_true_166:
- mov %eax 1 ; True
-.L_comp_end_166:
- pop %ebx
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_170
- mov %eax 0 ; False
- jmp .L_comp_end_170
-.L_comp_true_170:
- mov %eax 1 ; True
-.L_comp_end_170:
- cmp %eax 0
- jne .L_logic_true_168
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_false_173
- jmp .L_comp_true_172
-.L_comp_false_173:
- mov %eax 0 ; False
- jmp .L_comp_end_172
-.L_comp_true_172:
- mov %eax 1 ; True
-.L_comp_end_172:
- cmp %eax 0
- jne .L_logic_true_168
- mov %eax 0
- jmp .L_logic_end_167
-.L_logic_true_168:
- mov %eax 1
-.L_logic_end_167:
- pop %ebx
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_false_178
- jmp .L_comp_true_177
-.L_comp_false_178:
- mov %eax 0 ; False
- jmp .L_comp_end_177
-.L_comp_true_177:
- mov %eax 1 ; True
-.L_comp_end_177:
- psh %eax
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_180
- mov %eax 0 ; False
- jmp .L_comp_end_180
-.L_comp_true_180:
- mov %eax 1 ; True
-.L_comp_end_180:
- pop %ebx
-    mov %eax 0
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_184
- mov %eax 0 ; False
- jmp .L_comp_end_184
-.L_comp_true_184:
- mov %eax 1 ; True
-.L_comp_end_184:
- cmp %eax 0
- jne .L_logic_true_182
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_false_187
- jmp .L_comp_true_186
-.L_comp_false_187:
- mov %eax 0 ; False
- jmp .L_comp_end_186
-.L_comp_true_186:
- mov %eax 1 ; True
-.L_comp_end_186:
- cmp %eax 0
- jne .L_logic_true_182
- mov %eax 0
- jmp .L_logic_end_181
-.L_logic_true_182:
- mov %eax 1
-.L_logic_end_181:
- cmp %eax 0
- jne .L_logic_true_175
-    mov %eax 0
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_189
- mov %eax 0 ; False
- jmp .L_comp_end_189
-.L_comp_true_189:
- mov %eax 1 ; True
-.L_comp_end_189:
- cmp %eax 0
- jne .L_logic_true_175
- mov %eax 0
- jmp .L_logic_end_174
-.L_logic_true_175:
- mov %eax 1
-.L_logic_end_174:
- cmp %eax 0
- jne .L_logic_true_159
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_false_192
- jmp .L_comp_true_191
-.L_comp_false_192:
- mov %eax 0 ; False
- jmp .L_comp_end_191
-.L_comp_true_191:
- mov %eax 1 ; True
-.L_comp_end_191:
- cmp %eax 0
- jne .L_logic_true_159
- mov %eax 0
- jmp .L_logic_end_158
-.L_logic_true_159:
- mov %eax 1
-.L_logic_end_158:
         cmp %eax 0
-        je .L_endif_124 ; Jump to end if condition is false
+        je .L_endif_161 ; Jump to end if condition is false
         ; --- if-body ---
+    mov %ebx __var_VGA_COLORS
+    add %ebx 2 ; offset for field 'GREEN'
     mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_in_loop
-    sb %ebx %eax
-        jmp .L_endif_124 ; End of if-body
-.L_endif_124:
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 24
-    sd %ebx %eax
-.L_for_start_193:
-    mov %ebx __var_snakeTailLength
-    ld %ebx %eax
+    lb %ebx %eax ; Load value of field 'GREEN'
  psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_195
- mov %eax 0 ; False
- jmp .L_comp_end_195
-.L_comp_true_195:
- mov %eax 1 ; True
-.L_comp_end_195:
-        cmp %eax 0
-        je .L_for_end_193
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_198
- mov %eax 0 ; False
- jmp .L_comp_end_198
-.L_comp_true_198:
- mov %eax 1 ; True
-.L_comp_end_198:
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_200
- mov %eax 0 ; False
- jmp .L_comp_end_200
-.L_comp_true_200:
- mov %eax 1 ; True
-.L_comp_end_200:
- pop %ebx
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_204
- mov %eax 0 ; False
- jmp .L_comp_end_204
-.L_comp_true_204:
- mov %eax 1 ; True
-.L_comp_end_204:
- cmp %eax 0
- je .L_logic_false_202
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_206
- mov %eax 0 ; False
- jmp .L_comp_end_206
-.L_comp_true_206:
- mov %eax 1 ; True
-.L_comp_end_206:
- cmp %eax 0
- je .L_logic_false_202
- mov %eax 1
- jmp .L_logic_end_201
-.L_logic_false_202:
- mov %eax 0
-.L_logic_end_201:
-        cmp %eax 0
-        je .L_endif_196 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_in_loop
-    sb %ebx %eax
-        jmp .L_endif_196 ; End of if-body
-.L_endif_196:
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 24
-    ld %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 24
-    sd %ebx %eax
-        jmp .L_for_start_193
-.L_for_end_193:
-    mov %ebx __var_apple_y
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_209
- mov %eax 0 ; False
- jmp .L_comp_end_209
-.L_comp_true_209:
- mov %eax 1 ; True
-.L_comp_end_209:
- psh %eax
-    mov %ebx __var_apple_x
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_211
- mov %eax 0 ; False
- jmp .L_comp_end_211
-.L_comp_true_211:
- mov %eax 1 ; True
-.L_comp_end_211:
- pop %ebx
-    mov %ebx __var_apple_x
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_215
- mov %eax 0 ; False
- jmp .L_comp_end_215
-.L_comp_true_215:
- mov %eax 1 ; True
-.L_comp_end_215:
- cmp %eax 0
- je .L_logic_false_213
-    mov %ebx __var_apple_y
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_217
- mov %eax 0 ; False
- jmp .L_comp_end_217
-.L_comp_true_217:
- mov %eax 1 ; True
-.L_comp_end_217:
- cmp %eax 0
- je .L_logic_false_213
- mov %eax 1
- jmp .L_logic_end_212
-.L_logic_false_213:
- mov %eax 0
-.L_logic_end_212:
-        cmp %eax 0
-        je .L_endif_207 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
+ jsr set_background_color
  add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_x
-    sw %ebx %eax
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_y
-    sw %ebx %eax
-.L_while_start_218:
-    mov %eax 0
- psh %eax
-    mov %ebx __var_apple_x
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_220
- mov %eax 0 ; False
- jmp .L_comp_end_220
-.L_comp_true_220:
- mov %eax 1 ; True
-.L_comp_end_220:
-        cmp %eax 0
-        je .L_while_end_218 ; Jump to end if condition is false
-        ; --- while-body ---
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_x
-    sw %ebx %eax
-        jmp .L_while_start_218
-.L_while_end_218:
-.L_while_start_221:
-    mov %eax 0
- psh %eax
-    mov %ebx __var_apple_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_223
- mov %eax 0 ; False
- jmp .L_comp_end_223
-.L_comp_true_223:
- mov %eax 1 ; True
-.L_comp_end_223:
-        cmp %eax 0
-        je .L_while_end_221 ; Jump to end if condition is false
-        ; --- while-body ---
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr randrange
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_apple_y
-    sw %ebx %eax
-        jmp .L_while_start_221
-.L_while_end_221:
-    mov %eax 10
- psh %eax
-    mov %ebx __var_score
-    ld %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_score
-    sd %ebx %eax
-    mov %eax 1
- psh %eax
-    mov %ebx __var_snakeTailLength
-    ld %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_snakeTailLength
-    sd %ebx %eax
-        jmp .L_endif_207 ; End of if-body
-.L_endif_207:
-.L_ret_update:
-    mov %eax 0 ; Default return value
-    mov %esp %ebp
-    pop %ebp
-    rts
-
-draw:
-    psh %ebp
-    mov %ebp %esp
-    sub %esp 25 ; Allocate space for ALL local variables
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-.L_for_start_224:
-    mov %eax 800
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_226
- mov %eax 0 ; False
- jmp .L_comp_end_226
-.L_comp_true_226:
- mov %eax 1 ; True
-.L_comp_end_226:
-        cmp %eax 0
-        je .L_for_end_224
-    mov %eax 0
-    psh %eax ; Save expression result
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_game_map
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-        jmp .L_for_start_224
-.L_for_end_224:
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-.L_for_start_227:
-    mov %ebx __var_snakeTailLength
-    ld %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_229
- mov %eax 0 ; False
- jmp .L_comp_end_229
-.L_comp_true_229:
- mov %eax 1 ; True
-.L_comp_end_229:
-        cmp %eax 0
-        je .L_for_end_227
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_x
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_snake_y
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
- pop %ebx
- mul %eax %ebx
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sw %ebx %eax
-    mov %eax 1
-    psh %eax ; Save expression result
-    mov %ebx %ebp
-    sub %ebx 6
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_game_map
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-        jmp .L_for_start_227
-.L_for_end_227:
-    mov %ebx __var_x
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- mul %eax %ebx
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 12
-    sw %ebx %eax
-    mov %eax 2
-    psh %eax ; Save expression result
-    mov %ebx %ebp
-    sub %ebx 12
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_game_map
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
-    mov %ebx __var_apple_x
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx __var_apple_y
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- mul %eax %ebx
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 14
-    sw %ebx %eax
-    mov %eax 3
-    psh %eax ; Save expression result
-    mov %ebx %ebp
-    sub %ebx 14
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_game_map
-    add %ebx %e8   ; %ebx = base_address + offset
-    pop %eax ; Восстанавливаем результат для записи
-    sb %ebx %eax ; Записываем значение по адресу
+        jmp .L_endif_161 ; End of if-body
+.L_endif_161:
+        jmp .L_endif_144 ; End of if-body
+.L_endif_144:
+ jsr clear_screen
     mov %eax 0
  psh %eax
     mov %eax 0
  psh %eax
  jsr set_cursor_pos
  add %esp 8
-    mov %eax 7
- psh %eax
- jsr set_character_color
- add %esp 4
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-.L_for_start_230:
-    mov %eax 2
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- add %eax %ebx
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_232
- mov %eax 0 ; False
- jmp .L_comp_end_232
-.L_comp_true_232:
- mov %eax 1 ; True
-.L_comp_end_232:
-        cmp %eax 0
-        je .L_for_end_230
  mov %eax __str_init_7
  psh %eax
  jsr printf
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-        jmp .L_for_start_230
-.L_for_end_230:
  mov %eax __str_init_8
  psh %eax
  jsr printf
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
     mov %ebx %ebp
-    sub %ebx 23
-    sw %ebx %eax
-.L_for_start_233:
-    mov %ebx __var_height
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 23
+    sub %ebx 5
     mov %eax 0
     lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_235
- mov %eax 0 ; False
- jmp .L_comp_end_235
-.L_comp_true_235:
- mov %eax 1 ; True
-.L_comp_end_235:
-        cmp %eax 0
-        je .L_for_end_233
+ psh %eax
+    mov %ebx %ebp
+    sub %ebx 3
+    mov %eax 0
+    lw %ebx %eax
+ psh %eax
  mov %eax __str_init_9
  psh %eax
  jsr printf
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 21
-    sw %ebx %eax
-.L_for_start_236:
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 21
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_238
- mov %eax 0 ; False
- jmp .L_comp_end_238
-.L_comp_true_238:
- mov %eax 1 ; True
-.L_comp_end_238:
-        cmp %eax 0
-        je .L_for_end_236
-    mov %ebx %ebp
-    sub %ebx 21
-    mov %eax 0
-    lw %ebx %eax
- psh %eax
-    mov %ebx __var_width
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 23
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- mul %eax %ebx
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 18
-    sw %ebx %eax
-    mov %ebx %ebp
-    sub %ebx 18
-    mov %eax 0
-    lw %ebx %eax
-    psh %ebx       ; Сохраняем %ebx
-    mov %ebx 1
-    mul %eax %ebx  ; eax = offset
-    mov %e8 %eax   ; Сохраняем offset в %e8
-    pop %ebx       ; Восстанавливаем %ebx
-    mov %ebx __var_game_map
-    add %ebx %e8   ; %ebx = base_address + offset
-    mov %eax 0
-    lb %ebx %eax ; Load value from address
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 19
-    sb %ebx %eax
-    mov %eax 0
-        psh %eax ; Save case value
-    mov %ebx %ebp
-    sub %ebx 19
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_240_0
-    mov %eax 1
-        psh %eax ; Save case value
-    mov %ebx %ebp
-    sub %ebx 19
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_240_1
-    mov %eax 2
-        psh %eax ; Save case value
-    mov %ebx %ebp
-    sub %ebx 19
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_240_2
-    mov %eax 3
-        psh %eax ; Save case value
-    mov %ebx %ebp
-    sub %ebx 19
-    mov %eax 0
-    lb %ebx %eax
-        mov %ebx %eax ; Move match expression value to EBX for comparison
-        pop %eax ; Restore case value to EAX for comparison
-        cmp %eax %ebx
-        je .L_block_body_240_3
-        jmp .L_match_end_239
-.L_block_body_240_0:
  mov %eax __str_init_10
  psh %eax
  jsr printf
-        jmp .L_match_end_239
-.L_block_body_240_1:
-    mov %eax 2
+    mov %ebx %ebp
+    sub %ebx 8
+    mov %eax 0
+    lb %ebx %eax
  psh %eax
- jsr set_character_color
- add %esp 4
  mov %eax __str_init_11
  psh %eax
  jsr printf
-    mov %eax 7
+    mov %ebx %ebp
+    sub %ebx 9
+    mov %eax 0
+    lb %ebx %eax
  psh %eax
- jsr set_character_color
- add %esp 4
-        jmp .L_match_end_239
-.L_block_body_240_2:
-    mov %eax 2
- psh %eax
- jsr set_character_color
- add %esp 4
  mov %eax __str_init_12
  psh %eax
  jsr printf
-    mov %eax 7
+    mov %ebx %ebp
+    sub %ebx 10
+    mov %eax 0
+    lb %ebx %eax
  psh %eax
- jsr set_character_color
- add %esp 4
-        jmp .L_match_end_239
-.L_block_body_240_3:
-    mov %eax 1
- psh %eax
- jsr set_character_color
- add %esp 4
  mov %eax __str_init_13
  psh %eax
  jsr printf
-    mov %eax 7
- psh %eax
- jsr set_character_color
- add %esp 4
-        jmp .L_match_end_239
-.L_match_end_239:
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 21
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 21
-    sw %ebx %eax
-        jmp .L_for_start_236
-.L_for_end_236:
  mov %eax __str_init_14
  psh %eax
  jsr printf
-    mov %eax 1
- psh %eax
     mov %ebx %ebp
-    sub %ebx 23
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 23
-    sw %ebx %eax
-        jmp .L_for_start_233
-.L_for_end_233:
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-.L_for_start_240:
-    mov %eax 2
- psh %eax
-    mov %ebx __var_width
+    sub %ebx 6
     mov %eax 0
     lb %ebx %eax
- pop %ebx
- add %eax %ebx
  psh %eax
-    mov %ebx %ebp
-    sub %ebx 25
-    mov %eax 0
-    lw %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jl .L_comp_true_242
- mov %eax 0 ; False
- jmp .L_comp_end_242
-.L_comp_true_242:
- mov %eax 1 ; True
-.L_comp_end_242:
-        cmp %eax 0
-        je .L_for_end_240
  mov %eax __str_init_15
  psh %eax
  jsr printf
-    mov %eax 1
- psh %eax
     mov %ebx %ebp
-    sub %ebx 25
+    sub %ebx 7
     mov %eax 0
-    lw %ebx %eax
- pop %ebx
- add %eax %ebx
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 25
-    sw %ebx %eax
-        jmp .L_for_start_240
-.L_for_end_240:
+    lb %ebx %eax
+ psh %eax
  mov %eax __str_init_16
  psh %eax
  jsr printf
-    mov %ebx __var_score
-    ld %ebx %eax
- psh %eax
- mov %eax __str_init_17
- psh %eax
- jsr printf
- mov %eax __str_init_18
- psh %eax
- jsr printf
-    mov %eax __var_author
- psh %eax
- mov %eax __str_init_19
- psh %eax
- jsr printf
- mov %eax __str_init_20
- psh %eax
- jsr printf
  jsr screen_flush
-.L_ret_draw:
-    mov %eax 0 ; Default return value
-    mov %esp %ebp
-    pop %ebp
-    rts
-
-key_logic:
-    psh %ebp
-    mov %ebp %esp
-    sub %esp 6 ; Allocate space for ALL local variables
-    mov %eax 119
- psh %eax
- jsr char_to_scancode
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 1
-    sb %ebx %eax
-    mov %eax 115
- psh %eax
- jsr char_to_scancode
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 2
-    sb %ebx %eax
-    mov %eax 100
- psh %eax
- jsr char_to_scancode
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 3
-    sb %ebx %eax
-    mov %eax 97
- psh %eax
- jsr char_to_scancode
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 4
-    sb %ebx %eax
-    mov %eax 120
- psh %eax
- jsr char_to_scancode
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 5
-    sb %ebx %eax
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sb %ebx %eax
-    mov %ebx %ebp
-    sub %ebx 5
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr key_in_buffer
- add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sb %ebx %eax
     mov %eax 1
  psh %eax
-    mov %ebx %ebp
-    sub %ebx 6
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_245
- mov %eax 0 ; False
- jmp .L_comp_end_245
-.L_comp_true_245:
- mov %eax 1 ; True
-.L_comp_end_245:
-        cmp %eax 0
-        je .L_endif_243 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_in_loop
-    sb %ebx %eax
-        jmp .L_endif_243 ; End of if-body
-.L_endif_243:
     mov %ebx %ebp
     sub %ebx 1
     mov %eax 0
@@ -4843,222 +4452,46 @@ key_logic:
  psh %eax
  jsr key_in_buffer
  add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sb %ebx %eax
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 6
-    mov %eax 0
-    lb %ebx %eax
  pop %ebx
  cmp %eax %ebx
- je .L_comp_true_248
+ je .L_comp_true_166
  mov %eax 0 ; False
- jmp .L_comp_end_248
-.L_comp_true_248:
+ jmp .L_comp_end_166
+.L_comp_true_166:
  mov %eax 1 ; True
-.L_comp_end_248:
+.L_comp_end_166:
         cmp %eax 0
-        je .L_endif_246 ; Jump to end if condition is false
+        je .L_endif_164 ; Jump to end if condition is false
         ; --- if-body ---
-    mov %eax 1
+    jmp .L_while_end_143
+        jmp .L_endif_164 ; End of if-body
+.L_endif_164:
+    mov %eax 16
  psh %eax
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jne .L_comp_true_251
- mov %eax 0 ; False
- jmp .L_comp_end_251
-.L_comp_true_251:
- mov %eax 1 ; True
-.L_comp_end_251:
-        cmp %eax 0
-        je .L_endif_249 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 0
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_direction
-    sb %ebx %eax
-        jmp .L_endif_249 ; End of if-body
-.L_endif_249:
-        jmp .L_endif_246 ; End of if-body
-.L_endif_246:
-    mov %ebx %ebp
-    sub %ebx 2
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr key_in_buffer
+ jsr sleep
  add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sb %ebx %eax
-    mov %eax 1
+ jmp .L_while_start_143
+.L_while_end_143:
+    mov %ebx __var_VGA_COLORS
+    mov %eax 0
+    lb %ebx %eax ; Load value of field 'BLACK'
  psh %eax
-    mov %ebx %ebp
-    sub %ebx 6
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_254
- mov %eax 0 ; False
- jmp .L_comp_end_254
-.L_comp_true_254:
- mov %eax 1 ; True
-.L_comp_end_254:
-        cmp %eax 0
-        je .L_endif_252 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 0
- psh %eax
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jne .L_comp_true_257
- mov %eax 0 ; False
- jmp .L_comp_end_257
-.L_comp_true_257:
- mov %eax 1 ; True
-.L_comp_end_257:
-        cmp %eax 0
-        je .L_endif_255 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 1
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_direction
-    sb %ebx %eax
-        jmp .L_endif_255 ; End of if-body
-.L_endif_255:
-        jmp .L_endif_252 ; End of if-body
-.L_endif_252:
-    mov %ebx %ebp
-    sub %ebx 3
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr key_in_buffer
+ jsr set_background_color
  add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sb %ebx %eax
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 6
+    mov %ebx __var_VGA_COLORS
+    add %ebx 15 ; offset for field 'WHITE'
     mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_260
- mov %eax 0 ; False
- jmp .L_comp_end_260
-.L_comp_true_260:
- mov %eax 1 ; True
-.L_comp_end_260:
-        cmp %eax 0
-        je .L_endif_258 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 3
+    lb %ebx %eax ; Load value of field 'WHITE'
  psh %eax
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jne .L_comp_true_263
- mov %eax 0 ; False
- jmp .L_comp_end_263
-.L_comp_true_263:
- mov %eax 1 ; True
-.L_comp_end_263:
-        cmp %eax 0
-        je .L_endif_261 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 2
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_direction
-    sb %ebx %eax
-        jmp .L_endif_261 ; End of if-body
-.L_endif_261:
-        jmp .L_endif_258 ; End of if-body
-.L_endif_258:
-    mov %ebx %ebp
-    sub %ebx 4
-    mov %eax 0
-    lb %ebx %eax
- psh %eax
- jsr key_in_buffer
+ jsr set_character_color
  add %esp 4
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx %ebp
-    sub %ebx 6
-    sb %ebx %eax
-    mov %eax 1
- psh %eax
-    mov %ebx %ebp
-    sub %ebx 6
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- je .L_comp_true_266
- mov %eax 0 ; False
- jmp .L_comp_end_266
-.L_comp_true_266:
- mov %eax 1 ; True
-.L_comp_end_266:
-        cmp %eax 0
-        je .L_endif_264 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 2
- psh %eax
-    mov %ebx __var_direction
-    mov %eax 0
-    lb %ebx %eax
- pop %ebx
- cmp %eax %ebx
- jne .L_comp_true_269
- mov %eax 0 ; False
- jmp .L_comp_end_269
-.L_comp_true_269:
- mov %eax 1 ; True
-.L_comp_end_269:
-        cmp %eax 0
-        je .L_endif_267 ; Jump to end if condition is false
-        ; --- if-body ---
-    mov %eax 3
-    psh %eax ; Save expression result
-    pop %eax ; Восстанавливаем результат для записи
-    mov %ebx __var_direction
-    sb %ebx %eax
-        jmp .L_endif_267 ; End of if-body
-.L_endif_267:
-        jmp .L_endif_264 ; End of if-body
-.L_endif_264:
-.L_ret_key_logic:
-    mov %eax 0 ; Default return value
-    mov %esp %ebp
-    pop %ebp
-    rts
+ jsr clear_screen
+ jsr screen_flush
+ jsr exit
+    hlt ; Program end
 
 ; === Data Section ===
+__var_VGA_COLORS: reserve 16 bytes
 __var_text_ptr: reserve 4 bytes
 __var_videomode_ptr: reserve 4 bytes
 __var_color_ptr: reserve 4 bytes
@@ -5067,23 +4500,22 @@ __var_auto_flush: reserve 1 bytes
 __var_cursor_x: reserve 1 bytes
 __var_cursor_y: reserve 1 bytes
 __var__current_character_color: reserve 1 bytes
+__var__current_background_color: reserve 1 bytes
 __var_text_screen_width: reserve 1 bytes
 __var_text_screen_height: reserve 1 bytes
-__var__govnos_ret_address: reserve 4 bytes
-__var_direction: reserve 1 bytes
-__var_width: reserve 1 bytes
-__var_height: reserve 1 bytes
-__var_apple_x: reserve 2 bytes
-__var_apple_y: reserve 2 bytes
-__var_x: reserve 2 bytes
-__var_y: reserve 2 bytes
-__var_snake_x: reserve 256 bytes
-__var_snake_y: reserve 256 bytes
-__var_game_map: reserve 800 bytes
-__var_snakeTailLength: reserve 4 bytes
-__var_score: reserve 4 bytes
-__var_in_loop: reserve 1 bytes
-__var_author: reserve 6 bytes
+__var_coord_ptr: reserve 4 bytes
+__var_buttons_ptr: reserve 4 bytes
+__var_MOUSE_LEFT_BUTTON: reserve 1 bytes
+__var_MOUSE_MIDDLE_BUTTON: reserve 1 bytes
+__var_MOUSE_RIGHT_BUTTON: reserve 1 bytes
+__var_float_0:
+ bytes 0 0 0 0 ; Float value: 0.0
+__var_float_1:
+ bytes 0 0 128 63 ; Float value: 1.0
+__var_float_2:
+ bytes 0 80 195 71 ; Float value: 100000.0
+__var_float_3:
+ bytes 0 0 0 63 ; Float value: 0.5
 __str_init_0: bytes "abcdefghijklmnopqrstuvwxyz1234567890" $0A $1B $7F $09 " -=[]" $5C "`';'`,./"  0
 __str_init_1: bytes "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()" $0A $1B $7F $09 " _+{}|~:" $5C $22 "~<>?"  0
 __str_init_2: bytes $13 $E0 $E1 $E2 $E3 $E4 $E5 $E6 $E7 $E8 $E9 $EA $EB $14 $17 $12 $07 $C3 $C2 $FE $B4 $C1 $10 $11 $1F $1E  0
@@ -5091,17 +4523,13 @@ __str_init_3: bytes "abcdefghijklmnopqrstuvwxyz1234567890" $0A $1B $7F $09 " -=[
 __str_init_4: bytes "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()" $0A $1B $7F $09 " _+{}|~:" $5C $22 "~<>?"  0
 __str_init_5: bytes $13 $E0 $E1 $E2 $E3 $E4 $E5 $E6 $E7 $E8 $E9 $EA $EB $14 $17 $12 $07 $C3 $C2 $FE $B4 $C1 $10 $11 $1F $1E  0
 __str_init_6: bytes "Press any key to exit from this program..." 0
-__str_init_7: bytes "-" 0
-__str_init_8: bytes $0A 0
-__str_init_9: bytes "|" 0
-__str_init_10: bytes " " 0
-__str_init_11: bytes "o" 0
-__str_init_12: bytes "O" 0
-__str_init_13: bytes "*" 0
-__str_init_14: bytes "|" $0A 0
-__str_init_15: bytes "-" 0
-__str_init_16: bytes $0A 0
-__str_init_17: bytes "Score: %i" $0A 0
-__str_init_18: bytes "Press W, A, S, D for movement, X to quit." $0A 0
-__str_init_19: bytes "Author: %s" $0A 0
-__str_init_20: bytes "If you game over, please reboot your system" $0A 0
+__str_init_7: bytes "--- Mouse Test Program ---" $0A 0
+__str_init_8: bytes "(Press ESC to exit)" $0A $0A 0
+__str_init_9: bytes "Coordinates (X, Y): %i, %i " $0A 0
+__str_init_10: bytes "---------------------------" $0A 0
+__str_init_11: bytes "Left Button:   %i" $0A 0
+__str_init_12: bytes "Middle Button: %i" $0A 0
+__str_init_13: bytes "Right Button:  %i" $0A 0
+__str_init_14: bytes "---------------------------" $0A 0
+__str_init_15: bytes "Scrolled Up:   %i" $0A 0
+__str_init_16: bytes "Scrolled Down: %i" $0A 0
