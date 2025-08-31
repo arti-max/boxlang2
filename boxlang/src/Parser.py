@@ -101,6 +101,8 @@ class Parser:
             return self.parse_nasm_statement()
         if token_type == TokenType.NASMF:
             return self.parse_nasmf_statement()
+        if token_type == TokenType.EXIT:
+            return self.parse_exit_statement()
 
         # === ШАГ 2: Проверка на объявление ===
         is_declaration = token_type in [TokenType.NUM32, TokenType.NUM16, TokenType.CHAR, TokenType.FLOAT]
@@ -158,6 +160,17 @@ class Parser:
             )
         self.eat(TokenType.BREAK)
         return AST.BreakNode()
+    
+    def parse_exit_statement(self):
+        """Парсит 'exit [expression]'."""
+        self.eat(TokenType.EXIT)
+        
+        # Код выхода является обязательным выражением
+        if self.current_token.type == TokenType.SEMICOLON or self.current_token.type == TokenType.EOF:
+            self.error_handler.raise_syntax_error("Expected an expression for the exit code.", self.current_token)
+
+        expression_node = self.parse_expression()
+        return AST.ExitNode(expression_node)
 
     def continue_statement(self):
         token = self.current_token
@@ -616,18 +629,43 @@ class Parser:
         return params, is_variadic # <<< ИЗМЕНЕНИЕ
         
     def parse_function_declaration(self):
-        """Парсит 'box name[params] ( body )'."""
+        """Парсит 'box name[params] ( body )' с особой проверкой для _start."""
         self.eat(TokenType.BOX)
-        name = self.current_token
+        name_token = self.current_token
         self.eat(TokenType.IDENT)
-        
-        params, is_variadic = self.parse_param_list()
-        
+
+        # Проверяем, является ли это функцией _start и есть ли у нее скобки параметров
+        if name_token.value == '_start' and self.current_token.type != TokenType.BRACKET_OPEN:
+            # Если скобок нет, считаем, что параметров 0
+            params = []
+            is_variadic = False
+        else:
+            # Иначе парсим список параметров как обычно
+            params, is_variadic = self.parse_param_list()
+
+        # Валидация параметров специально для функции _start
+        if name_token.value == '_start':
+            if is_variadic:
+                self.error_handler.raise_syntax_error(
+                    "Функция _start не может быть вариативной.", name_token)
+            
+            if len(params) not in [0, 2]:
+                self.error_handler.raise_syntax_error(
+                    "Функция _start должна иметь 0 или 2 параметра (например, [num16 argc, char* argv]).", name_token)
+            
+            if len(params) == 2:
+                p1_type, p1_name = params[0]
+                p2_type, p2_name = params[1]
+                # Проверяем типы параметров для большей строгости
+                if not (p1_type == 'num16' and p2_type.endswith('*')):
+                     self.error_handler.raise_syntax_error(
+                        f"Ожидались параметры [num16 argc, char* argv], но получено [{p1_type} {p1_name}, {p2_type} {p2_name}].", name_token)
+
         self.eat(TokenType.PAREN_OPEN)
         body = self.parse_block()
         self.eat(TokenType.PAREN_CLOSE)
         
-        return AST.FunctionDeclarationNode(name.value, params, body, is_variadic)
+        return AST.FunctionDeclarationNode(name_token.value, params, body, is_variadic)
     
     def parse_kasm_statement(self):
         """Парсит многострочный kasm["line1", "line2", ...]"""

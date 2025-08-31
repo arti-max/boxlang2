@@ -34,6 +34,7 @@ box _start[] (
         open game_loop[]
     )
 
+    open init_text_mode_beta[]
     open clear_screen[0]
     open set_cursor_pos[0, 0]
     open exit_to_shell[]

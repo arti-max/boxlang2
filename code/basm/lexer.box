@@ -1,0 +1,201 @@
+
+enum TokenType (
+    INSTRUCTION : 0,
+    REGISTER : 1,
+    NUMBER : 2,
+    LABEL : 3,
+    IDENTIFIER : 4,
+    COMMA : 5,
+    PLUS : 6,
+    LBRACKET : 7,
+    RBRACKET : 8,
+    SEMICOLON : 9,
+    EOF : 10
+)
+
+box _tokenize[Assembly* asm] (
+    asm.pos : 0
+    asm.line : 0
+    asm.column : 0
+    asm.current_char : asm.source_code[0]
+
+    while [asm.pos < open strlen[asm.source_code]] (
+        open skip_whitespace[asm]
+
+        if [asm.current_char == -1] (
+            ret 0
+        )
+
+        char c : asm.current_char
+
+        ## open print_string["Char cmp: "]
+        ## open print_hex_byte_fixed[c]
+        ## open print_string[" asm.pos: "]
+        ## open print_hex_byte_fixed[asm.pos]
+        ## open print_newline[]
+        ## open print_string[" tokenize, lol "]
+        ## open print_newline[]
+
+        if [c == ','] (
+            open register_token_simple[asm, TokenType.COMMA]
+            open lexer_advance[asm]
+        ) else if [c == '\n'] (
+            open lexer_advance[asm]
+        ) else if [c == 0x0D] (
+            open lexer_advance[asm]
+            if [asm.current_char == 0x0A] (
+                open lexer_advance[asm]
+            )
+        ) else if [c == '+'] (
+            open register_token_simple[asm, TokenType.PLUS]
+            open lexer_advance[asm]
+        ) else if [c == '['] (
+            open register_token_simple[asm, TokenType.LBRACKET]
+            open lexer_advance[asm]
+        ) else if [c == ']'] (
+            open register_token_simple[asm, TokenType.RBRACKET]
+            open lexer_advance[asm]
+        ) else if [c == ';'] (
+            open skip_comment[asm]
+        ) else if [open isdigit[c]] (
+            num16 number : open read_number[asm]
+            open register_token_number[asm, TokenType.NUMBER, number]
+        ) else if [open isalpha[c] || c == '_'] (
+            char ident[32]
+            open read_identifier[asm, ident]
+
+            if [asm.current_char == ':'] (
+                open lexer_advance[asm]
+                open register_token_string[asm, TokenType.LABEL, ident]
+            ) else if [open is_instruction[ident] == 1] (
+                open register_token_string[asm, TokenType.INSTRUCTION, ident]
+            ) else if [open is_register_16[ident] == 1 || open is_register_8[ident] == 1] (
+                open register_token_string[asm, TokenType.REGISTER, ident]
+            ) else (
+                open register_token_string[asm, TokenType.IDENTIFIER, ident]
+            )
+        ) else (
+            open printf["Lexer Error: undefined symbol '%c'\n", c]
+            exit 22
+        )
+    )
+    open register_token_simple[asm, TokenType.EOF]
+)
+
+box register_token_simple[Assembly* asm, char type] (
+    Token token
+    token.type : type
+    token.line : asm.line
+    token.column : asm.column
+    
+    asm.tokens[asm.token_count] : token
+    asm.token_count : asm.token_count + 1
+)
+
+box register_token_string[Assembly* asm, char type, char* value] (
+    Token token
+    token.type : type
+    token.line : asm.line
+    token.column : asm.column
+    open strcpy[token.value_str, value]
+    
+    asm.tokens[asm.token_count] : token
+    asm.token_count : asm.token_count + 1
+)
+
+box register_token_number[Assembly* asm, char type, num16 value] (
+    Token token
+    token.type : type
+    token.line : asm.line
+    token.column : asm.column
+    token.value_num : value
+    
+    asm.tokens[asm.token_count] : token
+    asm.token_count : asm.token_count + 1
+)
+
+box isspace[char c] (
+    if [c == ' ' || c == '\t'] (
+        ret 1
+    )
+    ret 0
+)
+
+box lexer_advance[Assembly* asm] (
+    if [asm.current_char == '\n'] (
+        asm.line : asm.line + 1
+        asm.column : 0
+    )
+    asm.pos : asm.pos + 1
+    if [asm.pos > (open strlen[asm.source_code] - 1) || asm.current_char == 0x00] (
+        asm.current_char : -1
+    ) else (
+        asm.current_char : asm.source_code[asm.pos]
+        asm.column : asm.column + 1
+    )
+)
+
+box skip_whitespace[Assembly* asm] (
+    while [asm.current_char != -1 && open isspace[asm.current_char] == 1] (
+        open lexer_advance[asm]
+    )
+)
+
+box skip_comment[Assembly* asm] (
+    if [asm.current_char == ';'] (
+        while [asm.current_char != -1 && asm.current_char != '\n'] (
+            open lexer_advance[asm]
+        )
+    )
+)
+
+box read_number[Assembly* asm] (
+    num16 result : 0
+    num16 is_hex : 0
+
+    if [asm.current_char == '$'] (
+        is_hex : 1
+        open lexer_advance[asm]
+    )
+
+    if [is_hex == 1] (
+        while [asm.current_char != -1 && open ishexnum[asm.current_char]] (
+            result : result * 16
+            char c : asm.current_char
+            if [c >= 'A'] (
+                result : result + (c - 'A' + 10)
+            ) else (
+                result : result + (c - '0')
+            )
+            open lexer_advance[asm]
+        )
+    ) else (
+        ## Чтение десятичного числа
+        while [asm.current_char != -1 && open isdigit[asm.current_char]] (
+            result : result * 10
+            result : result + (asm.current_char - '0')
+            open lexer_advance[asm]
+        )
+    )
+
+    ret result
+)
+
+box read_identifier[Assembly* asm, char* result] (
+    char result_idx:0
+    while [asm.current_char != -1 && (open isalnum[asm.current_char] == 1)] (
+        result[result_idx] : asm.current_char
+        result_idx:result_idx+1
+        open lexer_advance[asm]
+    )
+    result[result_idx] : 0
+)
+
+box is_instruction[char* ident] (
+    if [open strcmp_3[ident, "MOV"] || 
+    open strcmp_3[ident, "ADD"] ||
+    open strcmp_3[ident, "SUB"] ||
+    open strcmp_3[ident, "XOR"] ||
+    open strcmp_3[ident, "AND"]] (ret 1)
+    ret 0
+)

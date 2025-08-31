@@ -27,6 +27,7 @@ class Lexer:
             'nasm': TokenType.NASM, 
             'nasmf': TokenType.NASMF,
             'enum': TokenType.ENUM,
+            'exit': TokenType.EXIT,
         }
         
         # Сразу токенизируем весь код

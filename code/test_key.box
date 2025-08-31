@@ -3,7 +3,8 @@
 
 box _start[] (
     open init_text_mode[]
-    open clear_screen[]
+    open clear_screen[0]
+    open set_auto_flush[1]
 
     char c : open getchar[]
 

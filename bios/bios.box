@@ -1,7 +1,8 @@
 @incl <stdlib>
 
+
 ## =============================================================================
-##                         ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ДАННЫЕ
+##                          ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ДАННЫЕ
 ## =============================================================================
 
 ## --- Состояние BIOS ---
@@ -9,15 +10,43 @@ char is_exit : 0
 char current_view : 0
 char main_menu_selection : 0
 char boot_menu_selection : 0
+char settings_menu_selection : 0
+char theme_menu_selection : 0
+
+## --- Настройки BIOS (сохраняемые) ---
 num32 default_boot_disk : 0
+num32 color_theme : 0
+char bios_password[17]
+
+## --- Цветовые переменные ---
+char HEADER_BG : 0
+char HEADER_FG : 0
+char MAIN_BG : 0
+char MAIN_FG : 0
+char SELECT_BG : 0
+char SELECT_FG : 0
+char HIGHLIGHT_FG : 0
 
 ## --- Меню и Тексты ---
-char* main_menu_items[4]
+char* main_menu_items[5]
 char main_item_1[21] : "Select Boot Device"
 char main_item_2[21] : "System Information"
 char main_item_3[21] : "Run RAM Check"
-char main_item_4[21] : "Exit and Boot"
-char MAIN_MENU_COUNT : 4
+char main_item_4[21] : "BIOS Settings"
+char main_item_5[21] : "Save & Exit"
+char MAIN_MENU_COUNT : 5
+
+char* settings_menu_items[3]
+char settings_item_1[21] : "Change Color Theme"
+char settings_item_2[21] : "Set Supervisor Password"
+char settings_item_3[21] : "Return to Main Menu"
+char SETTINGS_MENU_COUNT : 3
+
+char* theme_menu_items[3]
+char theme_item_1[21] : "Classic Blue"
+char theme_item_2[21] : "Hacker Green"
+char theme_item_3[21] : "Amber Monochrome"
+char THEME_MENU_COUNT : 3
 
 char* boot_menu_items[8]
 char bootable_disk_count : 0
@@ -30,11 +59,22 @@ struct ScanCodes (
     char ARROW_DOWN
     char ESC
     char ENTER
+    char BACKSPACE
 )
 ScanCodes SC
 
+## --- Идентификаторы экранов ---
+char VIEW_MAIN : 0
+char VIEW_BOOT : 1
+char VIEW_SYSINFO : 2
+char VIEW_RAMCHECK : 3
+char VIEW_SETTINGS : 4
+char VIEW_THEME : 5
+char VIEW_PASSWORD_SETUP : 6
+
+
 ## =============================================================================
-##                         ГЛАВНАЯ ФУНКЦИЯ (_start)
+##                             ГЛАВНАЯ ФУНКЦИЯ (_start)
 ## =============================================================================
 box _start[] (
     open init_text_mode[]
@@ -43,32 +83,45 @@ box _start[] (
     SC.ARROW_DOWN : 81
     SC.ESC : 41
     SC.ENTER : 40
+    SC.BACKSPACE : 14
+    
+    VIEW_MAIN : 0
+    VIEW_BOOT : 1
+    VIEW_SYSINFO : 2
+    VIEW_RAMCHECK : 3
+    VIEW_SETTINGS : 4
+    VIEW_THEME : 5
+    VIEW_PASSWORD_SETUP : 6
     
     main_menu_items[0] : &main_item_1
     main_menu_items[1] : &main_item_2
     main_menu_items[2] : &main_item_3
     main_menu_items[3] : &main_item_4
+    main_menu_items[4] : &main_item_5
+
+    settings_menu_items[0] : &settings_item_1
+    settings_menu_items[1] : &settings_item_2
+    settings_menu_items[2] : &settings_item_3
     
+    theme_menu_items[0] : &theme_item_1
+    theme_menu_items[1] : &theme_item_2
+    theme_menu_items[2] : &theme_item_3
+    
+
+    open init_interrupts[]
     open find_bootable_disks[]
+    open load_settings[]
+    open apply_color_theme[]
     
-    if [bootable_disk_count > 0] (
-        default_boot_disk : bootable_disk_ids[0]
-    )
-    
-    char enter_bios : 0
-    num32 startup_delay_counter : 0
-    while [startup_delay_counter < 10] (
-        if [open key_in_buffer[SC.ESC]] (
-            enter_bios : 1
-        )
-        open sleep[100]
-        startup_delay_counter : startup_delay_counter + 1
-    )
+    char enter_bios : open run_post_screen[]
     
     if [enter_bios == 1] (
+        open sleep[200]
         open bios_main_loop[]
     )
     
+    open set_background_color[VGA_COLORS.BLACK]
+    open clear_screen[]
     open load_and_boot[default_boot_disk]
     
     open set_background_color[VGA_COLORS.RED]
@@ -80,179 +133,330 @@ box _start[] (
     open confirm_exit[1]
 )
 
+
 ## =============================================================================
-##                         ОСНОВНОЙ ЦИКЛ BIOS (МАШИНА СОСТОЯНИЙ)
+##                        ОСНОВНОЙ ЦИКЛ BIOS (МАШИНА СОСТОЯНИЙ)
 ## =============================================================================
 box bios_main_loop[] (
     is_exit : 0
     while [is_exit == 0] (
         match [current_view] (
-            case [0] (
+            case [VIEW_MAIN] (
                 open draw_main_menu[]
                 open handle_main_menu_input[]
             )
-            case [1] (
+            case [VIEW_BOOT] (
                 open draw_boot_menu[]
                 open handle_boot_menu_input[]
             )
-            case [2] (
+            case [VIEW_SYSINFO] (
                 open display_sys_info[]
             )
-            case [3] (
+            case [VIEW_RAMCHECK] (
                 open run_ram_check[]
+            )
+            case [VIEW_SETTINGS] (
+                open draw_settings_menu[]
+                open handle_settings_menu_input[]
+            )
+            case [VIEW_THEME] (
+                open draw_theme_menu[]
+                open handle_theme_menu_input[]
+            )
+            case [VIEW_PASSWORD_SETUP] (
+                open password_setup_screen[]
             )
         )
     )
 )
 
+
 ## =============================================================================
-##                         ГЛАВНОЕ МЕНЮ (Отрисовка и Ввод)
+##                           ОБРАБОТЧИКИ ВВОДА
+## =============================================================================
+box handle_main_menu_input[] (
+    char key : open getkey[]
+    match [key] (
+        case [SC.ARROW_DOWN] (
+            main_menu_selection : (main_menu_selection + 1) % MAIN_MENU_COUNT
+            open sleep[100]
+        )
+        case [SC.ARROW_UP] (
+            main_menu_selection : (main_menu_selection - 1 + MAIN_MENU_COUNT) % MAIN_MENU_COUNT
+            open sleep[100]
+        )
+        case [SC.ENTER] (
+            match[main_menu_selection] (
+                case [0] ( current_view : VIEW_BOOT )
+                case [1] ( current_view : VIEW_SYSINFO )
+                case [2] ( current_view : VIEW_RAMCHECK )
+                case [3] ( current_view : VIEW_SETTINGS )
+                case [4] (
+                    open save_settings[]
+                    is_exit : 1
+                )
+            )
+            open sleep[150]
+        )
+        case [SC.ESC] (
+            is_exit : 1
+            open sleep[150]
+        )
+    )
+)
+
+box handle_boot_menu_input[] (
+    char key : open getkey[]
+    match [key] (
+        case [SC.ARROW_DOWN] (
+            if [bootable_disk_count != 0] (
+                boot_menu_selection : (boot_menu_selection + 1) % bootable_disk_count
+                open sleep[100]
+            )
+        )
+        case [SC.ARROW_UP] (
+            if [bootable_disk_count != 0] (
+                boot_menu_selection : (boot_menu_selection - 1 + bootable_disk_count) % bootable_disk_count
+                open sleep[100]
+            )
+        )
+        case [SC.ENTER] (
+            if [bootable_disk_count != 0] (
+                default_boot_disk : bootable_disk_ids[boot_menu_selection]
+                current_view : VIEW_MAIN
+                open sleep[150]
+            )
+        )
+        case [SC.ESC] (
+            current_view : VIEW_MAIN
+            open sleep[150]
+        )
+    )
+)
+
+box handle_settings_menu_input[] (
+    char key : open getkey[]
+    match [key] (
+        case [SC.ARROW_DOWN] (
+            settings_menu_selection : (settings_menu_selection + 1) % SETTINGS_MENU_COUNT
+            open sleep[100]
+        )
+        case [SC.ARROW_UP] (
+            settings_menu_selection : (settings_menu_selection - 1 + SETTINGS_MENU_COUNT) % SETTINGS_MENU_COUNT
+            open sleep[100]
+        )
+        case [SC.ENTER] (
+            match[settings_menu_selection] (
+                case [0] ( current_view : VIEW_THEME )
+                case [1] ( current_view : VIEW_PASSWORD_SETUP )
+                case [2] ( current_view : VIEW_MAIN )
+            )
+            open sleep[150]
+        )
+        case [SC.ESC] (
+            current_view : VIEW_MAIN
+            open sleep[150]
+        )
+    )
+)
+
+box handle_theme_menu_input[] (
+    char key : open getkey[]
+    match [key] (
+        case [SC.ARROW_DOWN] (
+            theme_menu_selection : (theme_menu_selection + 1) % THEME_MENU_COUNT
+            open sleep[100]
+        )
+        case [SC.ARROW_UP] (
+            theme_menu_selection : (theme_menu_selection - 1 + THEME_MENU_COUNT) % THEME_MENU_COUNT
+            open sleep[100]
+        )
+        case [SC.ENTER] (
+            color_theme : theme_menu_selection
+            open apply_color_theme[]
+            current_view : VIEW_SETTINGS
+            open sleep[150]
+        )
+        case [SC.ESC] (
+            current_view : VIEW_SETTINGS
+            open sleep[150]
+        )
+    )
+)
+
+
+## =============================================================================
+##                           ОТРИСОВКА МЕНЮ
 ## =============================================================================
 box draw_main_menu[] (
-    open set_background_color[VGA_COLORS.BLUE]
+    open set_background_color[MAIN_BG]
     open clear_screen[]
-    open draw_header[]
-    open draw_footer[]
-
-    for [num32 i : 0; i < MAIN_MENU_COUNT; i : i+1] (
+    open draw_header["GovnoCore32-20020 BIOS Setup Utility"]
+    open draw_footer["Arrow Keys: Select | Enter: Confirm | ESC: Exit"]
+    num32 i : 0
+    while[i != MAIN_MENU_COUNT] (
         open set_cursor_pos[4, 5 + i]
         if [i == main_menu_selection] (
-            open set_character_color[VGA_COLORS.WHITE]
-            open set_background_color[VGA_COLORS.DARK_GRAY]
+            open set_character_color[SELECT_FG]
+            open set_background_color[SELECT_BG]
         ) else (
-            open set_character_color[VGA_COLORS.LIGHT_GRAY]
-            open set_background_color[VGA_COLORS.BLUE]
+            open set_character_color[MAIN_FG]
+            open set_background_color[MAIN_BG]
         )
         open printf["   %s   ", main_menu_items[i]]
+        i : i + 1
     )
     open screen_flush[]
 )
 
-box handle_main_menu_input[] (
-    char key : open getkey[]
-    open sleep[100]
-    match [key] (
-        case [SC.ARROW_DOWN] (
-            main_menu_selection : (main_menu_selection + 1) % MAIN_MENU_COUNT
-        )
-        case [SC.ARROW_UP] (
-            main_menu_selection : (main_menu_selection - 1 + MAIN_MENU_COUNT) % MAIN_MENU_COUNT
-        )
-        case [SC.ENTER] (
-            match[main_menu_selection] (
-                case [0] ( current_view : 1 )
-                case [1] ( current_view : 2 )
-                case [2] ( current_view : 3 )
-                case [3] ( is_exit : 1 )
-            )
-        )
-        case [SC.ESC] ( is_exit : 1 )
-    )
-)
-
-## =============================================================================
-##                         МЕНЮ ВЫБОРА ДИСКА (Отрисовка и Ввод)
-## =============================================================================
 box draw_boot_menu[] (
-    open set_background_color[VGA_COLORS.BLUE]
+    open set_background_color[MAIN_BG]
     open clear_screen[]
-    open draw_header[]
-    open draw_footer[]
-    
+    open draw_header["Boot Device Selection"]
+    open draw_footer["Arrows: Select | Enter: Set Default | ESC: Back"]
     open set_cursor_pos[4, 3]
-    open set_character_color[VGA_COLORS.YELLOW]
+    open set_character_color[HIGHLIGHT_FG]
     open printf["Select a disk to boot from:"]
-    
     if [bootable_disk_count == 0] (
         open set_cursor_pos[4, 5]
         open set_character_color[VGA_COLORS.LIGHT_RED]
         open printf["No bootable disks found."]
     ) else (
-        for [num32 i : 0; i < bootable_disk_count; i : i+1] (
+        num32 i : 0
+        while[i != bootable_disk_count] (
             open set_cursor_pos[4, 5 + i]
             if [i == boot_menu_selection] (
-                open set_character_color[VGA_COLORS.WHITE]
-                open set_background_color[VGA_COLORS.DARK_GRAY]
+                open set_character_color[SELECT_FG]
+                open set_background_color[SELECT_BG]
             ) else (
-                open set_character_color[VGA_COLORS.LIGHT_GRAY]
-                open set_background_color[VGA_COLORS.BLUE]
+                open set_character_color[MAIN_FG]
+                open set_background_color[MAIN_BG]
             )
             open printf["   %s   ", boot_menu_items[i]]
+            if [bootable_disk_ids[i] == default_boot_disk] (
+                open printf[" <- Default"]
+            )
+            i : i + 1
         )
     )
     open screen_flush[]
 )
 
-box handle_boot_menu_input[] (
-    char key : open getkey[]
-    open sleep[100]
-    match [key] (
-        case [SC.ARROW_DOWN] (
-            if [bootable_disk_count > 0] (
-                boot_menu_selection : (boot_menu_selection + 1) % bootable_disk_count
-            )
+box draw_settings_menu[] (
+    open set_background_color[MAIN_BG]
+    open clear_screen[]
+    open draw_header["BIOS Settings"]
+    open draw_footer["Enter: Select | ESC: Back"]
+    num32 i : 0
+    while[i != SETTINGS_MENU_COUNT] (
+        open set_cursor_pos[4, 5 + i]
+        if [i == settings_menu_selection] (
+            open set_character_color[SELECT_FG]
+            open set_background_color[SELECT_BG]
+        ) else (
+            open set_character_color[MAIN_FG]
+            open set_background_color[MAIN_BG]
         )
-        case [SC.ARROW_UP] (
-            if [bootable_disk_count > 0] (
-                boot_menu_selection : (boot_menu_selection - 1 + bootable_disk_count) % bootable_disk_count
-            )
-        )
-        case [SC.ENTER] (
-            if [bootable_disk_count > 0] (
-                default_boot_disk : bootable_disk_ids[boot_menu_selection]
-                current_view : 0
-            )
-        )
-        case [SC.ESC] (
-            current_view : 0
-        )
+        open printf["   %s   ", settings_menu_items[i]]
+        i : i + 1
     )
+    open screen_flush[]
 )
 
+box draw_theme_menu[] (
+    open set_background_color[MAIN_BG]
+    open clear_screen[]
+    open draw_header["Color Theme Selection"]
+    open draw_footer["Arrows: Select | Enter: Apply | ESC: Back"]
+    num32 i : 0
+    while[i != THEME_MENU_COUNT] (
+        open set_cursor_pos[4, 5 + i]
+        if [i == theme_menu_selection] (
+            open set_character_color[SELECT_FG]
+            open set_background_color[SELECT_BG]
+        ) else (
+            open set_character_color[MAIN_FG]
+            open set_background_color[MAIN_BG]
+        )
+        open printf["   %s   ", theme_menu_items[i]]
+        if [i == color_theme] (
+            open printf[" <- Current"]
+        )
+        i : i + 1
+    )
+    open screen_flush[]
+)
+
+
 ## =============================================================================
-##                         ФУНКЦИИ BIOS
+##                              ФУНКЦИИ BIOS
 ## =============================================================================
 box display_sys_info[] (
-    open set_background_color[VGA_COLORS.BLUE]
+    open set_background_color[MAIN_BG]
     open clear_screen[]
-    open draw_header[]
-    open draw_footer[]
-    
+    open draw_header["System Information"]
+    open draw_footer["Press any key to return..."]
     char local_cpu_name[25]
     num32 local_total_ram : 0
-    
     open get_hardware_info_safe[&local_cpu_name, &local_total_ram]
-
-    open set_character_color[VGA_COLORS.YELLOW]
+    open set_character_color[HIGHLIGHT_FG]
     open set_cursor_pos[4, 5]
     open printf["System Information:"]
-
-    open set_character_color[VGA_COLORS.WHITE]
-    
+    open set_character_color[MAIN_FG]
     open set_cursor_pos[6, 7]
     open printf["CPU Type                 : %s", local_cpu_name]
-
     open set_cursor_pos[6, 8]
     open printf["CPU Speed                : 8.5 THz (Holy 2.0)"]
-    
     open set_cursor_pos[6, 10]
     open printf["Total Memory             : %i MB", local_total_ram / 1024 / 1024]
-    
     open set_cursor_pos[6, 12]
     open printf["Bootable Drives Detected : %i", bootable_disk_count]
-    
-    open set_cursor_pos[25, 20]
-    open printf["Press any key to return..."]
-    
     open screen_flush[]
-    
     open sleep[150]
     open getkey[]
-    open sleep[150]
-    current_view : 0
+    open sleep[20]
+    current_view : VIEW_MAIN
 )
 
-## --- ИСПРАВЛЕННАЯ ФУНКЦИЯ: Убраны однострочные if с ; ---
+box password_setup_screen[] (
+    open set_background_color[MAIN_BG]
+    open clear_screen[]
+    open draw_header["Set Supervisor Password"]
+    open draw_footer["Enter: Confirm | ESC: Cancel"]
+
+    char pass1[17]
+    char pass2[17]
+
+    open set_cursor_pos[5, 7]
+    open set_character_color[MAIN_FG]
+    open printf["Enter New Password : "]
+    open screen_flush[]
+    open read_masked_input[&pass1, 17]
+
+    open sleep[80]
+
+    open set_cursor_pos[5, 9]
+    open printf["Confirm Password   : "]
+    open screen_flush[]
+    open read_masked_input[&pass2, 17]
+    
+    open set_cursor_pos[5, 12]
+    if[open string_compare[&pass1, &pass2] == 0] (
+        open string_copy[&bios_password, &pass1]
+        open printf["Password has been set successfully!"]
+    ) else (
+        open printf["Error: Passwords do not match."]
+    )
+    
+    open set_cursor_pos[5, 14]
+    open printf["Press any key to continue..."]
+    open screen_flush[]
+    open sleep[150]
+    open getkey[]
+    open sleep[20]
+    current_view : VIEW_SETTINGS
+)
+
 box run_ram_check[] (
     open set_background_color[VGA_COLORS.BLACK]
     open clear_screen[]
@@ -260,35 +464,26 @@ box run_ram_check[] (
     open set_cursor_pos[5, 5]
     open printf["Performing RAM check..."]
     open screen_flush[]
-
     num32 ram_size_bytes : 0
     num32 errors : 0
-    
     kasm["int $A"]
-    kasmf["sd {} %e8", &ram_size_bytes]
-
+    kasmf["sd {0} %e8", &ram_size_bytes]
     num32 pattern : 0xAAAAAAAA
-    
     num32 block_size : 262144
     num32 start_address : 0x100000
-    
     num32 mmio_start : 0x400000
     num32 mmio_end : 0x500000
     num32 bios_start : 0x700000
     num32 bios_end : 0x800000
     num32 crash_zone_start : 0xF00000
     num32 crash_zone_end : 0x1000000
-
     num32 stack_safe_zone : 0x100000
     num32 end_address : ram_size_bytes - stack_safe_zone
-
     num32 current_block_start : start_address
-
     while [current_block_start < end_address] (
         open set_cursor_pos[5, 7]
         open printf["Checked: %i / %i MB ", current_block_start / 1048576, ram_size_bytes / 1048576]
         open screen_flush[]
-
         if [current_block_start >= mmio_start && current_block_start < mmio_end] (
             current_block_start : mmio_end
             continue
@@ -301,12 +496,10 @@ box run_ram_check[] (
             current_block_start : crash_zone_end
             continue
         )
-        
         num32 block_end : current_block_start + block_size
         if [block_end > end_address] (
             block_end : end_address
         )
-        
         num32 test_ptr : current_block_start
         while [test_ptr < block_end] (
             if [test_ptr >= mmio_start && test_ptr < mmio_end] (
@@ -321,7 +514,6 @@ box run_ram_check[] (
                 test_ptr : crash_zone_end
                 continue
             )
-
             num32* mem_addr : test_ptr
             num32 original_value : @mem_addr
             @mem_addr : pattern
@@ -333,99 +525,331 @@ box run_ram_check[] (
         )
         current_block_start : current_block_start + block_size
     )
-    
     open set_cursor_pos[5, 9]
     if [errors != 0] (
         open set_character_color[VGA_COLORS.RED]
         open printf["RAM check completed. ERRORS FOUND: %i", errors]
         open set_character_color[VGA_COLORS.WHITE]
     ) else (
-        open printf["RAM check completed. OK. No errors found.       "]
+        open printf["RAM check completed. OK. No errors found.         "]
     )
-    
     open set_cursor_pos[5, 11]
     open printf["Press any key to return..."]
     open screen_flush[]
-    
     open sleep[150]
     open getkey[]
-    open sleep[150]
-    current_view : 0
+    open sleep[80]
+    current_view : VIEW_MAIN
 )
 
 box load_and_boot[num32 disk_id] (
-    char boot_sector_buffer[512]
-    
-    kasmf["mov %eax {}", &boot_sector_buffer]
-    kasmf["mov %edx 512"]
-    kasmf["mov %ecx {}", disk_id]
-    kasmf["mov %esi 0"]
-    kasm["ldds %ecx"]
-
-    if [boot_sector_buffer[510] == 0xAA && boot_sector_buffer[511] == 0x55] (
-        char* dest : 0x030000
-        for [num32 i:0; i<512; i:i+1] (
-            dest[i] : boot_sector_buffer[i]
-        )
-        kasmf["mov %e9 {}", disk_id]
-        kasm["jmp $030000"]
+    if [bootable_disk_count != 0] (
+        kasmf["mov %e9 {0}", disk_id]
+        kasm["mov %esi $00010000"]
+        kasm["mov %egi $030000"]
+        kasm["mov %ecx 512"]
+        kasm[".copy_loop:"]
+        kasm["  ldds %e9"]
+        kasm["  sb %egi %eax"]
+        kasm["  inx %esi"]
+        kasm["  lp .copy_loop"]
+        kasm[".boot_start:"]
+        kasm["  xor %eax %eax"]
+        kasm["  xor %ebx %ebx"]
+        kasm["  xor %ecx %ecx"]
+        kasm["  xor %edx %edx"]
+        kasm["  xor %esi %esi"]
+        kasm["  xor %egi %egi"]
+        kasm["  xor %e8 %e8"]
+        kasm["  jmp $030000"]
     )
 )
 
+box printf_interrupt[char* str] (
+    open printf[str]
+    kasm["mov %esp %ebp"]
+    kasm["pop %ebp"]
+    kasm["irts"]
+)
+
+box print_newline_interrupt[] (
+    open print_newline[]
+    kasm["irts"]
+)
+
+box clear_screen_interrupt[] (
+    open clear_screen[]
+    kasm["irts"]
+)
+
+box init_interrupts[] (
+    kasm["mov %esi printf_interrupt"]
+    kasm["sti $72"] ## PRINTF INTERRUPT (0x72)
+    kasm["mov %esi print_newline_interrupt"]
+    kasm["sti $73"] ## PRINT_NEWLINE INTERRUPT (0x73)
+    kasm["mov %esi clear_screen_interrupt"]
+    kasm["sti $70"] ## CLEAR_SCREEN INTERRUPT (0x70)
+)
+
 ## =============================================================================
-##                         НИЗКОУРОВНЕВЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+##                 НИЗКОУРОВНЕВЫЕ И ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 ## =============================================================================
+box read_masked_input[char* buffer, num32 max_len] (
+    num32 current_len : 0
+    buffer[0] : 0
+    while [1] (
+        char key : open getkey[]
+        if [key != 0] (
+            open sleep[20]
+            if [key == SC.ENTER] (
+                break
+            )
+            if [key == SC.BACKSPACE] (
+                if [current_len != 0] (
+                    current_len : current_len - 1
+                    buffer[current_len] : 0
+                    open printf["\b \b"]
+                )
+            )
+            if [key >= 32 && key <= 126] (
+                if [current_len < (max_len - 1)] (
+                    buffer[current_len] : key
+                    current_len : current_len + 1
+                    buffer[current_len] : 0
+                    open printf["*"]
+                )
+            )
+            open screen_flush[]
+        )
+    )
+)
+
+box run_post_screen[] (
+    open set_background_color[VGA_COLORS.BLACK]
+    open clear_screen[]
+    open set_character_color[VGA_COLORS.WHITE]
+    open set_cursor_pos[5, 5]
+    open printf["GovnoCore32-20020 BIOS v2.0"]
+    open screen_flush[]
+    open sleep[200]
+    char cpu_name[25]
+    num32 total_ram : 0
+    open get_hardware_info_safe[&cpu_name, &total_ram]
+    open set_cursor_pos[5, 7]
+    open printf["CPU: %s ... OK", cpu_name]
+    open screen_flush[]
+    open sleep[200]
+    open set_cursor_pos[5, 8]
+    open printf["RAM: %i MB ... OK", total_ram / 1024 / 1024]
+    open screen_flush[]
+    open sleep[200]
+    open set_cursor_pos[5, 9]
+    if [bootable_disk_count != 0] (
+        open set_character_color[VGA_COLORS.WHITE]
+        open printf["Drives: %i detected ... OK", bootable_disk_count]
+    ) else (
+        open set_character_color[VGA_COLORS.YELLOW]
+        open printf["Drives: 0 detected ... WARNING"]
+        open set_character_color[VGA_COLORS.WHITE]
+    )
+    open screen_flush[]
+    open sleep[200]
+    num32 i : 5
+    while [i != 0] (
+        open set_cursor_pos[5, 12]
+        open printf["Press ESC to enter Setup, booting in %i... ", i]
+        open screen_flush[]
+        num32 j : 0
+        while[j != 10] (
+            if [open key_in_buffer[SC.ESC] == 1] (
+                ret 1
+            )
+            open sleep[100]
+            j : j + 1
+        )
+        i : i - 1
+    )
+    ret 0
+)
+
 box get_hardware_info_safe[char* cpu_buf, num32* ram_buf] (
+    kasmf["mov %e14 {0}", cpu_buf]
     kasm["int $A"]
-    kasmf["sd {} %eax", cpu_buf]
-    kasmf["sd {} %ebx", cpu_buf + 4]
-    kasmf["sd {} %ecx", cpu_buf + 8]
-    kasmf["sd {} %edx", cpu_buf + 12]
-    kasmf["sd {} %esi", cpu_buf + 16]
+    kasm["sd %e14 %eax"]
+    kasm["sd %e14 %ebx"]
+    kasm["sd %e14 %ecx"]
+    kasm["sd %e14 %edx"]
+    kasm["sd %e14 %esi"]
     cpu_buf[20] : 0
     kasm["int $A"]
-    kasmf["sd {} %e8", ram_buf]
+    kasmf["sd {0} %e8", ram_buf]
 )
 
 box find_bootable_disks[] (
     bootable_disk_count : 0
-    for [num32 i : 0; i < 8; i : i+1] (
+    num32 i : 0
+    while[i != 8] (
         num32 disk_size : 0
-        kasmf["mov %edx {}", i]
+        kasmf["mov %edx {0}", i]
         kasm["int $0B"]
-        kasmf["sd {} %edx", &disk_size]
-        
-        if [disk_size > 0] (
+        kasmf["sd {0} %edx", &disk_size]
+        if [disk_size != 0] (
             char* text_ptr : &boot_menu_text_buffer + (bootable_disk_count * 32)
             open sprintf[text_ptr, "Disk %i: %i MB", i, disk_size / 1024 / 1024]
             boot_menu_items[bootable_disk_count] : text_ptr
             bootable_disk_ids[bootable_disk_count] : i
             bootable_disk_count : bootable_disk_count + 1
         )
+        i : i + 1
     )
 )
 
-## =============================================================================
-##                         ФУНКЦИИ ДЛЯ ОТРИСОВКИ ИНТЕРФЕЙСА
-## =============================================================================
-box draw_header[] (
+box draw_header[char* title] (
     open set_cursor_pos[0, 0]
-    open set_background_color[VGA_COLORS.DARK_GRAY]
-    open set_character_color[VGA_COLORS.WHITE]
-    char title[39] : " GovnoCore32-20020 BIOS Setup Utility "
-    open printf["%s", title]
-    for [num32 i:0; i < (81 - title.length); i:i+1] (
+    open set_background_color[HEADER_BG]
+    open set_character_color[HEADER_FG]
+    num32 title_len : open strlen[title]
+    num32 padding_total : 80 - title_len
+    num32 pad_left : padding_total / 2
+    num32 i : 0
+    while[i != pad_left] (
         open printf[" "]
+        i : i + 1
+    )
+    open printf["%s", title]
+    i : 0
+    while[i != (padding_total - pad_left)] (
+        open printf[" "]
+        i : i + 1
     )
 )
 
-box draw_footer[] (
+box draw_footer[char* text] (
     open set_cursor_pos[0, 58]
-    open set_background_color[VGA_COLORS.DARK_GRAY]
-    open set_character_color[VGA_COLORS.BLACK]
-    char footer[57] : " Arrow Keys: Select | Enter: Confirm | ESC: Exit & Boot "
-    open printf["%s", footer]
-    for [num32 i:0; i < (81 - footer.length); i:i+1] (
+    open set_background_color[HEADER_BG]
+    open set_character_color[HEADER_FG]
+    num32 text_len : open strlen[text]
+    open printf[" %s", text]
+    num32 i : 0
+    while[i != (79 - text_len)] (
         open printf[" "]
+        i : i + 1
+    )
+)
+
+box save_settings[] (
+    if [bootable_disk_count == 0] (
+        ret 0
+    )
+    char buffer[32]
+    buffer[0] : 'G'
+    buffer[1] : 'C'
+    buffer[2] : 'B'
+    buffer[3] : 'S'
+    open memory_copy[&buffer + 4, &default_boot_disk, 4]
+    open memory_copy[&buffer + 8, &color_theme, 4]
+    open memory_copy[&buffer + 12, &bios_password, 17]
+    
+    kasm["mov %e9 0"]
+    kasm["mov %esi 512"]
+    kasmf["mov %egi {0}", &buffer]
+    kasm["mov %ecx 32"]
+    kasm[".save_loop:"]
+    kasm[" lb %egi %eax"]
+    kasm[" stds %e9"]
+    kasm[" inx %esi"]
+    kasm[" lp .save_loop"]
+)
+
+box load_settings[] (
+    if [bootable_disk_count == 0] (
+        if [bootable_disk_count != 0] (
+            default_boot_disk : bootable_disk_ids[0]
+        )
+        ret 0
+    )
+    char buffer[32]
+    kasm["mov %e9 0"]
+    kasm["mov %esi 512"]
+    kasmf["mov %egi {0}", &buffer]
+    kasm["mov %ecx 32"]
+    kasm[".load_loop:"]
+    kasm[" ldds %e9"]
+    kasm[" sb %egi %eax"]
+    kasm[" inx %esi"]
+    kasm[" lp .load_loop"]
+
+    if [buffer[0] == 'G' && buffer[1] == 'C' && buffer[2] == 'B' && buffer[3] == 'S'] (
+        open memory_copy[&default_boot_disk, &buffer + 4, 4]
+        open memory_copy[&color_theme, &buffer + 8, 4]
+        open memory_copy[&bios_password, &buffer + 12, 17]
+    ) else (
+        if [bootable_disk_count != 0] (
+            default_boot_disk : bootable_disk_ids[0]
+        )
+        color_theme : 0
+        bios_password[0] : 0
+    )
+)
+
+box apply_color_theme[] (
+    match [color_theme] (
+        case [1] (
+            HEADER_BG : VGA_COLORS.BLACK
+            HEADER_FG : VGA_COLORS.GREEN
+            MAIN_BG : VGA_COLORS.BLACK
+            MAIN_FG : VGA_COLORS.GREEN
+            SELECT_BG : VGA_COLORS.GREEN
+            SELECT_FG : VGA_COLORS.BLACK
+            HIGHLIGHT_FG : VGA_COLORS.LIGHT_GREEN
+        )
+        case [2] (
+            HEADER_BG : VGA_COLORS.BLACK
+            HEADER_FG : VGA_COLORS.BROWN
+            MAIN_BG : VGA_COLORS.BLACK
+            MAIN_FG : VGA_COLORS.BROWN
+            SELECT_BG : VGA_COLORS.BROWN
+            SELECT_FG : VGA_COLORS.BLACK
+            HIGHLIGHT_FG : VGA_COLORS.YELLOW
+        )
+        default (
+            HEADER_BG : VGA_COLORS.DARK_GRAY
+            HEADER_FG : VGA_COLORS.WHITE
+            MAIN_BG : VGA_COLORS.BLUE
+            MAIN_FG : VGA_COLORS.LIGHT_GRAY
+            SELECT_BG : VGA_COLORS.DARK_GRAY
+            SELECT_FG : VGA_COLORS.WHITE
+            HIGHLIGHT_FG : VGA_COLORS.YELLOW
+        )
+    )
+)
+
+box string_compare[char* s1, char* s2] (
+    while [@s1 == @s2] (
+        if [@s1 == 0] (
+            ret 0
+        )
+        s1 : s1 + 1
+        s2 : s2 + 1
+    )
+    ret 1
+)
+
+box string_copy[char* dest, char* src] (
+    num32 i : 0
+    while [1] (
+        dest[i] : src[i]
+        if [dest[i] == 0] (
+            break
+        )
+        i : i + 1
+    )
+)
+
+box memory_copy[char* dest, char* src, num32 count] (
+    num32 i : 0
+    while [i != count] (
+        dest[i] : src[i]
+        i : i + 1
     )
 )

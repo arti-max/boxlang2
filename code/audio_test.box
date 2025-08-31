@@ -1,0 +1,7 @@
+@incl <audio>
+@incl <stdlib>
+
+box _start[](
+    open note[7, 1000, 0x05140A32, 0]
+    open trapf[]
+)

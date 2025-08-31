@@ -1,10 +1,11 @@
-@incl <stdio>
+##@incl <stdio>
 
 num16 COLOR : 0b111110000011111
 
 num32 index : 0
 
 box _start[] (
+
 
     open set_color_to_table[COLOR, 1]
     num32 x : 0
@@ -18,7 +19,7 @@ box _start[] (
 
     open VIDEO_FLUSH[]
 
-    open trapf[]
+    ##open trapf[]
 
     kasm["int $00"]
 

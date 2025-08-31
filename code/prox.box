@@ -1,0 +1,41 @@
+@bits 16
+@incl <pros/stdlib>
+@incl <pros/string>
+@incl <pros/fs>
+
+struct Test (
+    char arr[4]
+    num16 val
+)
+
+box _start[] (
+    open init_all_colors_structs[]
+
+    Test T
+
+    T.arr[0] : 'H'
+    T.arr[1] : 'i'
+    T.arr[2] : '!'
+
+    T.val : 0x09
+    open set_text_color[T.val]
+    open print_string[T.arr]
+
+    open print_newline[]
+
+    char hello[14] : "Hello, World!"
+    ## char number[10]
+    ## char* rptr
+
+    ## open set_text_color[VGA_COLORS.BLUE]
+
+    open print_string[hello]
+
+    ## rptr : open num_to_str[123]
+
+    ## open print_string[number]
+
+    open print_newline[]
+
+    ret 0
+)

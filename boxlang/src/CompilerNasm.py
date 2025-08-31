@@ -55,6 +55,8 @@ class CompilerNasm:
         self.emit("section .text\n\n")
         self.emit("jmp _start\n")
         
+        self.emit_data("_start_bp: dw 0\n")
+        
         # Сначала обрабатываем объявления структур
         for node in ast.statements:
             if isinstance(node, AST.StructDeclarationNode):
@@ -78,6 +80,52 @@ class CompilerNasm:
             self.emit(self.data_section)
         
         return self.nasm_code
+    
+    def get_array_element_type(self, array_name):
+        """Возвращает тип элемента массива."""
+        var_info = self.get_var_info(array_name)
+        if var_info:
+            var_type, _, element_size = var_info
+            if var_type == 'array' or var_type.endswith('[]'):
+                size_to_type = {4: 'num32', 2: 'num16', 1: 'char'}
+                return size_to_type.get(element_size, 'num16')
+        return 'num16' # Значение по умолчанию
+    
+    def infer_expression_type(self, expr_node):
+        """Выводит тип выражения для NASM компилятора."""
+        if isinstance(expr_node, AST.NumberLiteralNode):
+            return 'num16'
+        elif isinstance(expr_node, AST.CharLiteralNode):
+            return 'char'
+        elif isinstance(expr_node, AST.StringLiteralNode):
+            return 'char*'
+        elif isinstance(expr_node, AST.VariableReferenceNode):
+            var_info = self.get_var_info(expr_node.name)
+            return var_info[0] if var_info else 'unknown'
+        elif isinstance(expr_node, AST.ArrayAccessNode):
+            var_info = self.get_var_info(expr_node.name)
+            if var_info:
+                var_type = var_info
+                if var_type == 'array':
+                    return self.get_array_element_type(expr_node.name)
+                elif var_type.endswith('*'):
+                    return var_type.replace('*', '')
+            return 'unknown'
+        elif isinstance(expr_node, AST.AddressOfNode):
+            base_type = self.infer_expression_type(expr_node.node_to_address)
+            return f"{base_type}*" if base_type != 'unknown' else 'unknown'
+        elif isinstance(expr_node, AST.BinaryOperationNode):
+            return 'num16'
+        elif isinstance(expr_node, AST.FunctionCallNode):
+            if expr_node.name in self.function_signatures:
+                return self.function_signatures[expr_node.name].get('return_type') or 'num16'
+            return 'num16'
+        elif isinstance(expr_node, AST.DereferenceNode):
+            pointer_type = self.infer_expression_type(expr_node.pointer_node)
+            if pointer_type.endswith('*'):
+                return pointer_type[:-1]
+            return 'unknown'
+        return 'unknown'
 
     def visit(self, node):
         """Диспетчер для обработки узлов AST"""
@@ -115,13 +163,11 @@ class CompilerNasm:
             var_label = f"_var_{node.name}"
             size = self.get_type_size(node.var_type)
             self.global_variables[node.name] = (node.var_type, var_label, size)
-
-            # ИСПРАВЛЕНО: Для структур используем правильный размер
+            
             if node.var_type in self.struct_definitions:
                 struct_size = self.struct_definitions[node.var_type]['size']
                 self.emit_data(f"{var_label}: times {struct_size} db 0 ; struct {node.var_type}\n")
             else:
-                # Для примитивных типов
                 if size == 1:
                     self.emit_data(f"{var_label}: db 0\n")
                 elif size == 2:
@@ -132,33 +178,39 @@ class CompilerNasm:
         elif isinstance(node, AST.ArrayDeclarationNode):
             if not isinstance(node.size_node, AST.NumberLiteralNode):
                 raise TypeError("Array size must be constant")
-            
+
             array_label = f"_arr_{node.name}"
             element_size = self.get_type_size(node.var_type)
             array_size = node.size_node.value
-            
-            self.global_variables[node.name] = ("array", array_label, element_size)
             self.array_sizes[node.name] = array_size
-            
-            # Если есть инициализатор
+
+            ## НАЧАЛО ИСПРАВЛЕНИЯ ##
+            ## Мы проверяем, является ли тип массива известной структурой.
+            ## Если да, сохраняем его как специальный тип, например "InstInfo[]".
+            ## Иначе, сохраняем как обычный "array".
+            var_type_to_store = "array"
+            if node.var_type in self.struct_definitions:
+                var_type_to_store = f"{node.var_type}[]"
+
+            self.global_variables[node.name] = (var_type_to_store, array_label, element_size)
+            ## КОНЕЦ ИСПРАВЛЕНИЯ ##
+
             if node.initial_value and isinstance(node.initial_value, AST.StringLiteralNode):
-                # Инициализация строкой
-                string_data = self._extract_string_data(node.initial_value)
+                string_data = self._extract_string_data(node.initial_value.segments)
                 bytes_data = ", ".join(str(ord(char)) for char in string_data)
-                # Дополняем нулями до размера массива
-                remaining = array_size - len(string_data) - 1  # -1 для нулевого терминатора
+                remaining = array_size - len(string_data) - 1
                 if remaining > 0:
                     self.emit_data(f"{array_label}: db {bytes_data}, 0, times {remaining} db 0\n")
                 else:
                     self.emit_data(f"{array_label}: db {bytes_data}, 0\n")
             else:
-                # Обычная инициализация нулями
                 if element_size == 1:
                     self.emit_data(f"{array_label}: times {array_size} db 0\n")
                 elif element_size == 2:
                     self.emit_data(f"{array_label}: times {array_size} dw 0\n")
                 else:
                     self.emit_data(f"{array_label}: times {array_size} dd 0\n")
+
 
     def _extract_string_data(self, segments):
         """Извлекает строковые данные из сегментов"""
@@ -244,8 +296,68 @@ class CompilerNasm:
         self.emit(f" push {self.base_reg}\n")
         self.emit(f" mov {self.base_reg}, {self.stack_reg}\n")
         
+        if node.name == '_start':
+            self.emit(f" mov [_start_bp], {self.base_reg} ; Save _start's base pointer\n")
+            if self.target_bits == 16:
+                self.emit("; --- Save original segments ---\n")
+                self.emit_data("_orig_ds: dw 0\n")
+                self.emit_data("_orig_es: dw 0\n") 
+                self.emit_data("_orig_ss: dw 0\n")
+                
+                self.emit("; --- Setup flat memory model ---\n")
+                self.emit(" mov [_orig_ds], ds ; Save original DS\n")
+                self.emit(" mov [_orig_es], es ; Save original ES\n")
+                self.emit(" mov [_orig_ss], ss ; Save original SS\n")
+                
+                self.emit(" cli          ; Disable interrupts\n")
+                self.emit(" mov ax, ds   ; Use current DS as base\n")
+                self.emit(" mov es, ax   ; ES = DS\n")
+                self.emit(" mov ss, ax   ; SS = DS\n")
+                self.emit(" sti          ; Re-enable interrupts\n")
+        
         if local_size > 0:
             self.emit(f" sub {self.stack_reg}, {local_size}\n")
+            
+        if node.name == '_start' and self.target_bits == 16 and len(node.params) == 2:
+            argc_param_name = node.params[0][1] # 'argc'
+            argv_param_name = node.params[1][1] # 'argv'
+
+            if argc_param_name in self.local_variables and argv_param_name in self.local_variables:
+                argc_offset = self.local_variables[argc_param_name][1]
+                argv_offset = self.local_variables[argv_param_name][1]
+                label_suffix = self.get_label("argc_argv")
+
+                self.emit("\n; --- Injected by compiler: argc/argv handling for x16-PRos ---\n")
+                # x16-PRos передает указатель на строку аргументов в регистре SI.
+
+                # 1. Сохраняем указатель argv ([bp+6] или соответствующее смещение)
+                self.emit(f" mov word [{self.base_reg}+{argv_offset}], si\n")
+
+                # 2. Вычисляем argc, подсчитывая строки с нулевым терминатором.
+                self.emit(f" mov di, si\n")
+                self.emit(f" xor cx, cx\n")
+                self.emit(f" test di, di\n")
+                self.emit(f" jz .argc_done_{label_suffix}\n")
+
+                self.emit(f".arg_loop_{label_suffix}:\n")
+                self.emit(f" cmp byte [di], 0\n")
+                self.emit(f" je .argc_done_{label_suffix}\n")
+                self.emit(f" inc cx\n")
+
+                self.emit(f".scan_loop_{label_suffix}:\n")
+                self.emit(f" cmp byte [di], 0\n")
+                self.emit(f" je .found_null_{label_suffix}\n")
+                self.emit(f" inc di\n")
+                self.emit(f" jmp .scan_loop_{label_suffix}\n")
+
+                self.emit(f".found_null_{label_suffix}:\n")
+                self.emit(f" inc di\n")
+                self.emit(f" jmp .arg_loop_{label_suffix}\n")
+
+                self.emit(f".argc_done_{label_suffix}:\n")
+                # 3. Сохраняем итоговый argc ([bp+4] или соответствующее смещение)
+                self.emit(f" mov word [{self.base_reg}+{argc_offset}], cx\n")
+                self.emit("; --- End of injected code ---\n\n")
 
         # Инициализируем локальные массивы строками
         for decl in local_declarations:
@@ -257,6 +369,17 @@ class CompilerNasm:
         for stmt in node.body:
             self.visit(stmt)
 
+        if node.name == '_start':
+            if self.target_bits == 16:
+                self.emit("; --- Restore original segments ---\n")
+                self.emit(" cli          ; Disable interrupts\n")
+                self.emit(" mov ax, [_orig_ds]\n")
+                self.emit(" mov ds, ax   ; Restore DS\n")
+                self.emit(" mov ax, [_orig_es]\n") 
+                self.emit(" mov es, ax   ; Restore ES\n")
+                self.emit(" mov ax, [_orig_ss]\n")
+                self.emit(" mov ss, ax   ; Restore SS\n")
+                self.emit(" sti          ; Re-enable interrupts\n")
         # Эпилог
         self.emit(f".{node.name}_end:\n")
         self.emit(f" mov {self.stack_reg}, {self.base_reg}\n")
@@ -494,23 +617,24 @@ class CompilerNasm:
         """Обрабатывает взятие адреса с использованием LEA"""
         if isinstance(node.node_to_address, AST.VariableReferenceNode):
             var_name = node.node_to_address.name
-            
-            #print(f"DEBUG: Looking for variable '{var_name}'")
-            #print(f"DEBUG: Local variables: {list(self.local_variables.keys())}")
-            #print(f"DEBUG: Global variables: {list(self.global_variables.keys())}")
-            
-            if var_name in self.local_variables:
-                var_type, offset, size = self.local_variables[var_name]
-                if offset > 0:
-                    self.emit(f"    lea {self.main_reg}, [{self.base_reg}+{offset}]\n")
-                else:
-                    self.emit(f"    lea {self.main_reg}, [{self.base_reg}{offset}]\n")
-                    
-            elif var_name in self.global_variables:
-                var_type, label, size = self.global_variables[var_name]
-                self.emit(f"    mov {self.main_reg}, {label}\n")
-            else:
+            var_info = self.get_var_info(var_name)
+
+            if not var_info:
                 raise NameError(f"Variable '{var_name}' not defined")
+
+            var_type, location, size = var_info
+
+            if var_name in self.local_variables:
+                # Это локальная переменная или ПАРАМЕТР.
+                # location - это смещение от BP (отрицательное для локальных, положительное для параметров).
+                if location > 0:
+                    self.emit(f" lea {self.main_reg}, [{self.base_reg}+{location}] ; Get address of parameter '{var_name}'\n")
+                else:
+                    self.emit(f" lea {self.main_reg}, [{self.base_reg}{location}] ; Get address of local var '{var_name}'\n")
+
+            elif var_name in self.global_variables:
+                # Это глобальная переменная. location - это метка.
+                self.emit(f" mov {self.main_reg}, {location} ; Get address of global var '{var_name}'\n")
                 
         elif isinstance(node.node_to_address, AST.ArrayAccessNode):
             # Адрес элемента массива
@@ -548,16 +672,29 @@ class CompilerNasm:
             raise NotImplementedError("Address-of operator not implemented for this node type")
 
     def visit_DereferenceNode(self, node):
-        """Обрабатывает разыменование указателя (@ptr)"""
-        # Вычисляем адрес
-        self.visit(node.pointer_node)
+        ## ## Определяем тип данных, на который указывает указатель.
+        pointer_type_str = self.infer_expression_type(node.pointer_node) # e.g., 'num16*'
         
-        # Загружаем значение по адресу (предполагаем указатель на слово)
-        self.emit(f"    mov {self.temp_reg}, {self.main_reg}\n")
-        if self.target_bits == 16:
-            self.emit(f"    mov {self.main_reg}, [{self.temp_reg}]\n")
+        if not pointer_type_str.endswith('*'):
+            raise TypeError(f"Cannot dereference a non-pointer type '{pointer_type_str}'")
+            
+        base_type = pointer_type_str[:-1] # e.g., 'num16'
+        size = self.get_type_size(base_type)
+
+        ## ## Вычисляем адрес, который хранится в указателе.
+        self.visit(node.pointer_node)
+        self.emit(f" mov {self.addr_reg}, {self.main_reg} ; bx now containts address for read\n")
+        
+        ## ## Загружаем данные правильного размера по этому адресу.
+        if size == 1:
+            self.emit(f" xor {self.main_reg}, {self.main_reg} ; clear ax\n")
+            self.emit(f" mov al, [{self.addr_reg}] ; load byte\n")
+        elif size == 2:
+            self.emit(f" mov {self.main_reg}, [{self.addr_reg}] ; load word\n")
+        elif size == 4:
+            self.emit(f" mov {self.main_reg}, dword [{self.addr_reg}] ; load dword\n")
         else:
-            self.emit(f"    mov {self.main_reg}, dword [{self.temp_reg}]\n")
+            self.emit(f" mov {self.main_reg}, [{self.addr_reg}] ; load word by default\n")
 
     def visit_AssignmentNode(self, node):
         """Генерирует присваивание с правильной адресацией для 16-бит"""
@@ -727,53 +864,31 @@ class CompilerNasm:
         # Метод 4: КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ - Обработка глобальных массивов структур
         if not is_struct_array and array_type == 'array':
             # Ищем структуры с подходящим размером
-            exact_matches = []
-            for struct_name, struct_def in self.struct_definitions.items():
-                if struct_def['size'] == element_size:
-                    exact_matches.append(struct_name)
-            
+            exact_matches = [
+                s_name for s_name, s_def in self.struct_definitions.items() 
+                if s_def['size'] == element_size
+            ]
+
             if len(exact_matches) == 1:
+                # Нашли ровно одно совпадение - это наш тип
                 struct_type = exact_matches[0]
                 is_struct_array = True
             elif len(exact_matches) > 1:
-                # Эвристика по имени массива
-                array_name_upper = node.array_name.upper()
-                best_match = None
-                
-                for candidate in exact_matches:
-                    candidate_upper = candidate.upper()
-                    if (candidate_upper in array_name_upper or 
-                        array_name_upper.startswith(candidate_upper) or
-                        candidate_upper.startswith(array_name_upper.split('_')[0]) or
-                        array_name_upper.endswith(candidate_upper)):
-                        best_match = candidate
-                        break
-                
-                if best_match:
-                    struct_type = best_match
-                    is_struct_array = True
-                else:
-                    struct_type = exact_matches[0]
-                    is_struct_array = True
-            else:
-                # Ищем приблизительные соответствия (±2 байта)
-                approximate_matches = []
-                for struct_name, struct_def in self.struct_definitions.items():
-                    struct_size = struct_def['size']
-                    if abs(struct_size - element_size) <= 2:
-                        approximate_matches.append((struct_name, struct_size))
-                
-                if approximate_matches:
-                    best_match = min(approximate_matches, key=lambda x: abs(x[1] - element_size))
-                    struct_type = best_match[0]
-                    is_struct_array = True
+                # Нашли несколько совпадений - это неоднозначность.
+                # Вместо угадывания, сообщаем об ошибке.
+                raise TypeError(
+                    f"Array '{node.array_name}' type is ambiguous. "
+                    f"Multiple structs match size {element_size}: {exact_matches}. "
+                    f"Please provide a more explicit type cast if necessary."
+                )
         
-        if not is_struct_array or not struct_type or struct_type not in self.struct_definitions:
-            raise TypeError(f"Cannot determine struct type for array '{node.array_name}'. Available: {list(self.struct_definitions.keys())}")
+        if not is_struct_array or not struct_type:
+            raise TypeError(f"Cannot determine struct type for array '{node.array_name}'. Element size is {element_size}.")
         
         struct_def = self.struct_definitions[struct_type]
         if node.field_name not in struct_def['fields']:
-            raise NameError(f"Struct '{struct_type}' has no field '{node.field_name}'")
+            raise NameError(f"Struct '{struct_type}' has no field '{node.field_name}'. "
+                            f"Available fields: {list(struct_def['fields'].keys())}")
         
         field_info = struct_def['fields'][node.field_name]
         field_offset = field_info['offset']
@@ -1265,44 +1380,73 @@ class CompilerNasm:
             return self._visit_nasmf_v2(node)
         else:
             return self._visit_nasmf_v1(node)
+        
+    def _get_nasm_operand_string(self, node):
+        """
+        Возвращает строковое представление операнда для NASM.
+        Не генерирует код, кроме случаев вычисления сложных выражений.
+        """
+        if isinstance(node, AST.VariableReferenceNode):
+            var_info = self.get_var_info(node.name)
+            if not var_info:
+                raise NameError(f"Переменная '{node.name}' не найдена.")
+            
+            var_type, location, size = var_info
+            size_prefix = {1: "byte", 2: "word", 4: "dword"}.get(size, "word")
+            
+            if isinstance(location, int): # Локальная переменная
+                return f"{size_prefix} [{self.base_reg}{location:+}]"
+            else: # Глобальная переменная
+                return f"{size_prefix} [{location}]"
+
+        elif isinstance(node, (AST.NumberLiteralNode, AST.CharLiteralNode)):
+            return str(node.value)
+        
+        # Для всего остального (например, a + b) вычисляем выражение,
+        # результат которого окажется в главном регистре (ax/eax).
+        else:
+            self.visit(node)
+            return self.main_reg
 
     def _visit_nasmf_v1(self, node):
-        """Упрощённая версия для 16-битного режима"""
-        template = ""
-        for part in node.assembly_parts:
-            if isinstance(part, list):
-                template += self._extract_string_data(part)
-            else:
-                template += part
-            template += "\n"
+        """
+        Обрабатывает nasmf v1 путем прямой подстановки строковых представлений
+        операндов.
+        """
+        self.emit("\n; --- nasmf v1 start ---\n")
 
-        if node.args:
-            # Сохраняем аргументы на стеке
-            for i, arg in enumerate(node.args):
-                self.visit(arg)
-                self.emit(f" push {self.main_reg} ; Save nasmf arg {i} on stack\n")
+        # 1. Собираем шаблон в единую строку
+        template_lines = [self._extract_string_data(part) for part in node.assembly_parts]
+        template = "\n".join(template_lines)
 
-            # Загружаем аргументы в регистры с помощью POP (в обратном порядке)
-            available_regs = ['ax', 'bx', 'cx', 'dx']
-            substitutions = {}
+        # 2. Получаем строковые представления для всех аргументов.
+        # Важно: _get_nasm_operand_string может сам генерировать код
+        # для вычисления сложных выражений.
+        arg_strings = [self._get_nasm_operand_string(arg) for arg in node.args]
+
+        # 3. Выполняем подстановку
+        final_code = template
+        for i, arg_str in enumerate(arg_strings):
+            # Сначала обрабатываем более специфичный случай [{i}] для адресов
+            addr_placeholder = f"[{{{i}}}]"
+            if addr_placeholder in final_code:
+                if isinstance(node.args[i], AST.VariableReferenceNode):
+                    var_info = self.get_var_info(node.args[i].name)
+                    _, location, _ = var_info
+                    addr_str = f"[{self.base_reg}{location:+}]" if isinstance(location, int) else f"[{location}]"
+                    final_code = final_code.replace(addr_placeholder, addr_str)
+                else:
+                    raise TypeError(f"Аргумент {i} для '[{{{i}}}]' должен быть переменной.")
             
-            # Извлекаем аргументы в обратном порядке (последний сохранённый первым)
-            for i in range(min(len(node.args), len(available_regs))):
-                reg = available_regs[len(node.args) - 1 - i]
-                self.emit(f" pop {reg} ; Load nasmf arg {len(node.args) - 1 - i}\n")
-                substitutions[len(node.args) - 1 - i] = reg
+            # Затем обычная подстановка значения {i}
+            value_placeholder = f"{{{i}}}"
+            final_code = final_code.replace(value_placeholder, arg_str)
+                
+        # 4. Вставляем готовый код
+        if final_code.strip():
+            self.emit(f"{final_code.strip()}\n")
 
-            # Подставляем аргументы
-            for i, replacement in substitutions.items():
-                template = template.replace(f"{{{i}}}", replacement)
-
-            self.emit("; === NASMF v1 inline assembly start ===\n")
-            self.emit(template)
-            self.emit("; === NASMF v1 inline assembly end ===\n")
-        else:
-            self.emit("; === NASMF v1 inline assembly start ===\n")
-            self.emit(template)
-            self.emit("; === NASMF v1 inline assembly end ===\n")
+        self.emit("; --- nasmf v1 end ---\n")
 
     def _visit_nasmf_v2(self, node):
         """Обрабатывает новую версию nasmf с constraints в стиле GCC"""
@@ -2135,6 +2279,40 @@ class CompilerNasm:
         for name, value in node.values:
             self.enum_definitions[node.name][name] = value
         print(f"DEBUG: Registered enum '{node.name}' with {len(node.values)} members.")
+        
+    def visit_ExitNode(self, node):
+        """
+        Генерирует код для немедленного выхода из программы.
+        """
+        self.emit("\n; --- exit statement --- \n")
+        
+        if self.target_bits == 16:
+                self.emit("; --- Restore original segments ---\n")
+                self.emit(" cli          ; Disable interrupts\n")
+                self.emit(" mov ax, [_orig_ds]\n")
+                self.emit(" mov ds, ax   ; Restore DS\n")
+                self.emit(" mov ax, [_orig_es]\n") 
+                self.emit(" mov es, ax   ; Restore ES\n")
+                self.emit(" mov ax, [_orig_ss]\n")
+                self.emit(" mov ss, ax   ; Restore SS\n")
+                self.emit(" sti          ; Re-enable interrupts\n")
+        
+        # 1. Вычисляем код выхода, результат в self.main_reg (ax)
+        self.visit(node.expression_node)
+        
+        # 2. Сохраняем код выхода во временном регистре (bx), чтобы он не затерся
+        self.emit(f" mov {self.temp_reg}, {self.main_reg} ; Save exit code\n")
+        
+        # 3. Восстанавливаем bp функции _start из глобальной переменной
+        self.emit(f" mov {self.base_reg}, [_start_bp]\n")
+        
+        # 4. Восстанавливаем стек до состояния _start и "возвращаемся" из нее
+        self.emit(f" mov {self.stack_reg}, {self.base_reg}\n")
+        self.emit(f" pop {self.base_reg}\n")
+        
+        # 5. Возвращаем сохраненный код выхода в ax и выполняем ret
+        self.emit(f" mov {self.main_reg}, {self.temp_reg}\n")
+        self.emit(" ret\n\n")
 
         
     

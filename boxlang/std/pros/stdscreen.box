@@ -18,6 +18,8 @@ box print_newline[] (
 )
 
 box set_text_color[char color] (
+    STD_CURRENT_COLOR: color
+
     nasmf[
         "mov bx, {0}"
         "mov ah, 0x07"
@@ -38,4 +40,52 @@ box print_white_string[char* s] (
     nasmf["mov si, {0}", s]
     nasm["mov ah, 0x01"]
     nasm["int 0x21"]
+)
+
+box print_num[num16 number] (
+    char numbers[256]
+    num16 i:0
+
+    if [number == 0] (
+        open print_char['0']
+        ret 0
+    )
+    if [number < 0] (
+        open print_char['-']
+        number : number * -1
+    )
+    while [number != 0] (
+        num16 digit : number % 10
+        char char_code : digit + '0'
+        number : number // 10
+        numbers[i] : char_code
+        i:i+1
+    )
+
+    while [i != 0] (
+        i : i - 1
+        open print_char[numbers[i]]
+    )
+)
+
+box print_char[char c] (
+    char color: STD_CURRENT_COLOR
+
+    nasmf[
+    "mov ax, {0}"
+    "mov ah, 0x0E"
+    "mov bl, {1}"
+    "cmp al, 0x0A"
+    "je .handle_newline"
+    "int 0x10"
+    "jmp .end_chr"
+    ".handle_newline:"
+    "mov al, 0x0D"
+    "int 0x10"
+    "mov al, 0x0A"
+    "int 0x10"
+    ".end_chr:",
+    c,
+    color
+    ]
 )

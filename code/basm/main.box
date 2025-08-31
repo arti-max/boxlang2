@@ -1,0 +1,87 @@
+@bits 16
+@incl <pros/stdlib>
+@incl <pros/fs>
+@incl "structs.box"
+@incl "lexer.box"
+@incl "parser.box"
+@incl "codegen.box"
+@incl "instructions.box"
+@incl "utils.box"
+
+@define NONE -1
+
+box _start[num16 argc, char* argv] (
+    open init_all_colors_structs[]
+    open set_text_color[VGA_COLORS.WHITE]
+    Assembly basm
+
+    open print_string["argc: "]
+    open print_hex_byte_fixed[argc]
+    open print_string[" argv: "]
+    open print_string[argv]
+    open print_newline[]
+
+    if [argc == 1] (
+        char* input_file : open get_arg[argv, 0]
+        char* output_file : open get_arg[argv, 1]
+
+        open print_string["input: "]
+        open print_string[input_file]
+        open print_newline[]
+        open print_string["output: "]
+        open print_string[output_file]
+        open print_newline[]
+
+        open load_file[input_file, basm.source_code]
+    )
+    ## num16 hex_num : 0x02
+    ## char text_buffer[12]
+    ## open itoa_base[hex_num, text_buffer, 10]
+    ## open print_string[text_buffer]
+    ## open print_newline[]
+    ## open print_hex[hex_num]
+    ## open print_newline[]
+    ## open print_binary[hex_num]
+    ## open print_newline[]
+
+    ## standard declarations
+    ## basm.code_count : 0
+    ## basm.label_count : 0
+    ## basm.define_count : 0
+    ## basm.token_count : 0
+    basm.current_address : 0
+    basm.is_error : 0
+
+    if [argc < 1] (
+        basm.source_code : "MOV AX, 1\nADD BX, AX\nXOR AX, AX"
+    )
+
+    basm.test.t : "test"
+
+    open init_instruction_table[]
+
+    char buf[8]
+    char len:0
+    char i:0
+
+    len : open generate_instruction["SUB", "DX", "BX", buf]
+    while[i < 8] (
+        char val : buf[i] ; open print_hex_byte_fixed[val] ; open print_string[" "]
+        i:i+1
+    )
+    open print_newline[]
+    char i:0
+
+    open printf["struct.struct test: %s", basm.test.t]
+
+    open _tokenize[&basm]
+    
+    ## open parse_line[&basm, "start:", 1]
+    ## open parse_line[&basm, "MOV AX, 5", 2]  
+    ## open parse_line[&basm, "ADD AX, 10", 3]
+    ## open parse_line[&basm, "JMP start", 4]
+    
+    open generate_binary[&basm, "output.bin"]
+    
+    open print_string["Assembly completed!"]
+)

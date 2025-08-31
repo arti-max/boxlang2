@@ -1,0 +1,66 @@
+
+box generate_binary[Assembly* asm, char* filename] (
+    open print_string[filename]
+    open print_newline[]
+)
+
+box generate_instruction[char* mnemonic, char* dst, char* src, char* out] (
+    char result
+
+    if [open is_register_16[dst] && open is_register_16[src]] (
+        result : open gen_reg16_reg16[mnemonic, dst, src, out]
+        if [result > 0] (ret result)
+    )
+
+    ret -1
+)
+
+## === generation_functions ===
+
+box gen_reg16_reg16[char* mnemonic, char* dst, char* src, char* out] (
+    if [open is_register_16[dst] == 20 || open is_register_16[src] == 20] (ret -1)
+
+    char d : open get_register_code_16[dst]
+    char s : open get_register_code_16[src]
+
+    char mnem_index : open get_mnemonic_index[mnemonic]
+
+    if [open strcmp_3[mnemonic, "MOV"]] ( 
+        ## out[0] : 0x66
+        out[0] : INSTRUCTION_TABLE[mnem_index].op16_reg_rm
+        out[1] : 0xC0 | (d << 3) | s
+        ret 2
+    ) else  (
+        ## out[0] : 0x66
+        out[0] : INSTRUCTION_TABLE[mnem_index].op16_rm_reg
+        out[1] : 0xC0 | (s << 3) | d
+        ret 2
+    )
+)
+
+box gen_reg8_reg8[char* mnemonic, char* dst, char* src, char* out] (
+    if [open is_register_8[dst] == 20 || open is_register_8[src] == 20] (ret -1)
+
+    char d : open get_register_code_8[dst]
+    char s : open get_register_code_8[src]
+
+    char mnem_index : open get_mnemonic_index[mnemonic]
+    if [open strcmp_3[mnemonic, "MOV"]] (
+        ## out[0] : 0x66
+        out[0] : INSTRUCTION_TABLE[open get_mnemonic_index["MOV"]].op8_reg_rm
+        out[1] : 0xC0 | (d << 3) | s
+        ret 2
+    ) else (
+        ## out[0] : 0x66
+        out[0] : INSTRUCTION_TABLE[mnem_index].op8_rm_reg
+        out[1] : 0xC0 | (s << 3) | d
+        ret 2
+    )
+)
+
+box gen_reg16_imm[char* mnemonic, char* dst, char* src, char* out] (
+    if [open is_register_16[dst] == 20 || open is_immediate[src] == -1] (ret -1)
+
+    char reg_code : open get_register_code_16[dst]
+    ## num16 imm : parse_immediate[src]
+)

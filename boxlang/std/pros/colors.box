@@ -27,6 +27,8 @@ struct VgaColors (
 TextColors TEXT_COLORS
 VgaColors VGA_COLORS
 
+num16 STD_CURRENT_COLOR: 15
+
 box init_all_colors_structs[] (
     TEXT_COLORS.WHITE : 0x01
     TEXT_COLORS.GREEN : 0x02
@@ -49,4 +51,6 @@ box init_all_colors_structs[] (
     VGA_COLORS.MAGNETA : 0x0D
     VGA_COLORS.YELLOW : 0x0E
     VGA_COLORS.WHITE : 0x0F
+
+    STD_CURRENT_COLOR: 0x0F
 )

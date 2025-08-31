@@ -1,0 +1,87 @@
+## ============================================================
+##  test_mouse.box - Программа для тестирования библиотеки мыши
+## ============================================================
+
+## Подключаем необходимые стандартные библиотеки
+@incl <stdlib>
+@incl <mouse>
+
+box _start[] (
+    ## Инициализируем текстовый видеорежим
+    open init_text_mode[]
+    
+    ## Скан-код для клавиши ESC. Мы будем использовать его для выхода.
+    char esc_scancode : 41
+    
+    ## Основной цикл программы
+    while [1] (
+        ## --- Получаем всю информацию от мыши ---
+        num16 mouse_x : open get_mouse_x[]
+        num16 mouse_y : open get_mouse_y[]
+        
+        char scrolled_up    : open is_scrolled_up[]
+        char scrolled_down  : open is_scrolled_down[]
+        
+        char left_pressed   : 0
+        char middle_pressed : 0
+        char right_pressed  : 0
+        
+        ## --- Логика изменения цветов ---
+        ## Устанавливаем цвета по умолчанию
+        open set_background_color[VGA_COLORS.BLACK]
+        open set_character_color[VGA_COLORS.WHITE]
+        
+        ## КЛЮЧЕВОЕ ИЗМЕНЕНИЕ:
+        ## Проверяем кнопки, ТОЛЬКО если не было прокрутки
+        if [scrolled_up == 0 && scrolled_down == 0] (
+            ## Если прокрутки нет, можно безопасно проверять кнопки
+            left_pressed   : open is_left_button_pressed[]
+            middle_pressed : open is_middle_button_pressed[]
+            right_pressed  : open is_right_button_pressed[]
+
+            if [left_pressed == 1] (
+                open set_background_color[VGA_COLORS.BLUE]
+            )
+            if [right_pressed == 1] (
+                open set_background_color[VGA_COLORS.RED]
+            )
+            if [middle_pressed == 1] (
+                open set_background_color[VGA_COLORS.GREEN]
+            )
+        )
+
+        ## --- Отрисовка информации на экране (код без изменений) ---
+        open clear_screen[]
+        open set_cursor_pos[0, 0]
+        
+        open printf["--- Mouse Test Program ---\n"]
+        open printf["(Press ESC to exit)\n\n"]
+        
+        open printf["Coordinates (X, Y): %i, %i \n", mouse_x, mouse_y]
+        open printf["---------------------------\n"]
+        open printf["Left Button:   %i\n", left_pressed]
+        open printf["Middle Button: %i\n", middle_pressed]
+        open printf["Right Button:  %i\n", right_pressed]
+        open printf["---------------------------\n"]
+        open printf["Scrolled Up:   %i\n", scrolled_up]
+        open printf["Scrolled Down: %i\n", scrolled_down]
+        
+        open screen_flush[]
+        
+        ## --- Проверка на выход (код без изменений) ---
+        if [open key_in_buffer[esc_scancode] == 1] (
+            break
+        )
+        
+        open sleep[16]
+    )
+    
+    ## Перед выходом очищаем экран и возвращаем стандартные цвета
+    open set_background_color[VGA_COLORS.BLACK]
+    open set_character_color[VGA_COLORS.WHITE]
+    open clear_screen[]
+    open screen_flush[]
+    
+    ## Корректно завершаем программу
+    open exit[]
+)

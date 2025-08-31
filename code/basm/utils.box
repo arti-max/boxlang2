@@ -1,0 +1,144 @@
+
+
+box strcpy_3[char* dst, char* src] (
+    dst[0] : src[0]
+    dst[1] : src[1]
+    dst[2] : src[2]
+)
+
+box strcpy_2[char* dst, char* src] (
+    dst[0] : src[0]
+    dst[1] : src[1]
+)
+
+box strcmp_3[char* s1, char* s2] (
+    if [s1[0] == s2[0]] (
+        if [s1[1] == s2[1]] (
+            if [s1[2] == s2[2]] (
+                ret 1
+            )
+        )
+    )
+
+    ret 0
+)
+
+box strcmp_2[char* s1, char* s2] (
+    if [s1[0] == s2[0]] (
+        if [s1[1] == s2[1]] (
+            ret 1
+        )
+    )
+    ret 0
+)
+
+## box parse_number[char* str] (
+##     if [str[0] == '0' && str[1] == 'x'] (
+##         ret open parse_hex[str + 2]
+##     ) else if [str[0] == '0' && str[1] == 'b'] (
+##         ret open parse_binary[str + 2]
+##     ) else (
+##         ret open parse_decimal[str]
+##     )
+## )
+
+box is_register_16[char* operand] (
+    if [open strcmp_2[operand, "AX"]] (ret 1)
+    if [open strcmp_2[operand, "BX"]] (ret 1)
+    if [open strcmp_2[operand, "CX"]] (ret 1)
+    if [open strcmp_2[operand, "DX"]] (ret 1)
+    if [open strcmp_2[operand, "SI"]] (ret 1)
+    if [open strcmp_2[operand, "DI"]] (ret 1)
+    if [open strcmp_2[operand, "SP"]] (ret 1)
+    if [open strcmp_2[operand, "BP"]] (ret 1)
+    ret 0
+)
+
+box is_register_8[char* operand] (
+    if [open strcmp_2[operand, "AL"]] (ret 1)
+    if [open strcmp_2[operand, "BL"]] (ret 1)
+    if [open strcmp_2[operand, "CL"]] (ret 1)
+    if [open strcmp_2[operand, "DL"]] (ret 1)
+    if [open strcmp_2[operand, "AH"]] (ret 1)
+    if [open strcmp_2[operand, "BH"]] (ret 1)
+    if [open strcmp_2[operand, "CH"]] (ret 1)
+    if [open strcmp_2[operand, "DH"]] (ret 1)
+    ret 0
+)
+
+box is_immediate[char* operand] (
+    if [(operand[0] >= '0' && operand[0] <= '9') || (operand[0] == '0' && operand[1] == 'x')] (
+        ret 1
+    )
+    ret 0
+)
+
+box set_error[Assembly* asm, char* msg] (
+    open strcpy[asm.error_msg, msg]
+    asm.is_error : 1
+)
+
+box in_registered_symbols[char c] (
+    char sym[41] : "ABCDEFGHIJKLMNOPQESTUVWXYZ1234567890_'[]"
+    num16 i:0
+    while [i<sym.length] (
+        if [c == sym[i]] (ret 1)
+        i:i+1
+    )
+    ret 0
+)
+
+box isalnum[char c] (
+    char sym[37] : "ABCDEFGHIJCLMNOPQRSTUVWXYZ1234567890"
+    char i:0
+    while [i<sym.length] (
+        if [c == sym[i]] (ret 1)
+        i:i+1
+    )
+    ret 0
+)
+
+box ishexnum[char c] (
+    char hex[17] : "0123456789ABCDEF"
+    char i:0
+    while [i<hex.length] (
+        if [c == hex[i]] (ret 1)
+        i:i+1
+    )
+    ret 0
+)
+
+box isdigit[char c] (
+    char dig[11] : "1234567890"
+    char i:0
+    while [i<dig.length] (
+        if [c == dig[i]] (ret 1)
+        i:i+1
+    )
+    ret 0
+)
+
+box isalpha[char c] (
+    char sym[27]: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    char i:0
+    while [i<sym.length] (
+        if [c == sym[i]] (ret 1)
+        i:i+1
+    )
+    ret 0
+)
+
+box isalnum_str[char* c] (
+    char sym[37] : "ABCDEFGHIJCLMNOPQRSTUVWXYZ1234567890"
+    char i:0
+    char j:0
+    while [i != 0x00] (
+        char c2 : c[i]
+        while [j<sym.length] (
+            if [c2 != sym[j]] (ret 0)
+            j:j+1
+        )
+        i:i+1
+    )
+    ret 1
+)

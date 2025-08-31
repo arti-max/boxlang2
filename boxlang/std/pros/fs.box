@@ -3,10 +3,26 @@
 
 box create_empty_file[char* filename] (
     nasmf[
-        "mov ax, {0}"
+        "mov si, {0}"
         "mov ah, 0x05"
         "int 0x22",
         filename
     ]
 )
 
+box load_file[char* filename, char* buffer] (
+    num16 file_size:0
+
+    nasmf[
+        "mov si, {0}"
+        "mov cx, {1}"
+        "mov ah, 0x02"
+        "int 0x22"
+        "mov {2}, bx",
+        filename,
+        buffer,
+        file_size
+    ]
+
+    ret file_size
+)

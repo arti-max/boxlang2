@@ -1,15 +1,5 @@
 @incl <pros/stdscreen>
 
-num16* __argv_pointer
-
-
-
-box init_prox_app[] (
-    nasmf["mov {0}, si", __argv_pointer]
-    nasm["mov bx, ax"]
-    nasm["mov [bx], si"]
-)
-
 box reboot[] (
     nasm["int 0x19"]
 )
@@ -26,6 +16,35 @@ box strcpy[char* dst, char* src] (
     )
     dst[i] : 0  ## нулевой терминатор
     ret i
+)
+
+box ascii_to_int[char c] (
+    num16 result: 0;
+    result: c - '0';
+    ret result;
+)
+
+box string_to_int[char* str] (
+    num16 result: 0
+    char* p: str            ## Создаем указатель для итерации по строке
+    char current_char: @p   ## Получаем первый символ
+
+    ## Цикл, пока не конец строки и пока символ - цифра
+    while [current_char != 0 && current_char >= '0' && current_char <= '9'] (
+        
+        ## 1. Сдвигаем текущий результат влево (умножаем на 10)
+        result: result * 10
+        
+        ## 2. Конвертируем текущий символ в цифру и добавляем к результату
+        num16 digit: current_char - '0'
+        result: result + digit
+        
+        ## 3. Переходим к следующему символу
+        p: p + 1
+        current_char: @p
+    )
+
+    ret result
 )
 
 ## Конвертация числа в строку (itoa - integer to ASCII)
@@ -161,10 +180,68 @@ box strlen[char* s] (
     ret len
 )
 
-box get_command_argv[char index] (
+box get_arg[char* argv, num16 index] (
+    char* current_ptr : argv
+    num16 i : 0
 
+    ## Цикл для перехода к нужному аргументу
+    while [i < index] (
+        ## Если мы дошли до конца списка (двойной ноль), значит индекс неверный
+        if [@current_ptr == 0] (
+            ret 0
+        )
+
+        ## Ищем конец текущей строки (нулевой терминатор)
+        while [@current_ptr != 0] (
+            current_ptr: current_ptr + 1
+        )
+
+        ## Переходим к началу следующей строки (пропускаем сам терминатор)
+        current_ptr: current_ptr + 1
+        i : i + 1
+    )
+
+    ## Проверка, что после всех пропусков мы не оказались в конце списка
+    if [@current_ptr == 0] (
+        ret 0
+    )
+
+    ret current_ptr
 )
 
-box printf[char* s, ...] (
 
+box printf[char* str, ...] (
+
+    char* char_ptr : str
+    num16* arg_ptr : &str + 2
+
+    while [@char_ptr != 0] (
+        if [@char_ptr == '%'] (
+            char_ptr : char_ptr + 1
+            match[@char_ptr] (
+                case ['i'] (
+                    num16 value_to_print : @arg_ptr
+                    open print_num[value_to_print]
+                    arg_ptr: arg_ptr + 2
+                )
+                case ['s'] (
+                    char* string_to_print : @arg_ptr
+                    open print_string[string_to_print]
+                    arg_ptr: arg_ptr + 2
+                )
+                case ['c'] (
+                    char character_to_print : @arg_ptr
+                    open print_char[character_to_print]
+                    arg_ptr: arg_ptr + 2
+                )
+                default (
+                    open print_char['%']
+                    open print_char[@char_ptr]
+                )
+            )
+        ) else (
+            open print_char[@char_ptr]
+        )
+        char_ptr : char_ptr + 1
+    )
 )

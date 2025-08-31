@@ -1,0 +1,78 @@
+
+
+box parse_line[Assembly* asm, char* line, num16 line_num] (
+    Token tokens[16]
+    num16 token_count : 0
+
+    open tokenize_line[line, tokens, &token_count]
+    if [token_count == 0] (
+        ret 0                    ## empty line
+    )
+
+    match[tokens[0].type] (
+        case ['L'] (
+            open parse_label[asm, tokens]
+        )
+        case ['D'] (
+            open parse_directive[asm, tokens]
+        )
+        case ['I'] (
+            open parse_instruction[asm, tokens]
+        )
+        default (
+            open set_error[asm, "Unknown token type"]
+        )
+    )
+)
+
+box parse_instruction[Assembly* asm, Token* tokens] (
+    Inst inst
+
+    open strcpy[inst.mnemonic, tokens[0].value, 3] ## it will be in stdlib [dst, src, len]
+    
+    ## inst.opcode : open get_opcode[inst.mnemonic] ## function in instructions.box
+
+    if [tokens[1].value[0] != 0] (
+        open strcpy[inst.dst.name, tokens[1].value]
+    )
+    if [tokens[2].value[0] != 0] (
+        open strcpy[inst.src.name, tokens[2].value]
+    )
+
+    inst.addr : asm.current_address
+
+    asm.code[asm.code_count] : inst
+    asm.code_count : asm.code_count + 1
+    asm.current_address : asm.current_address + open get_inst_size[&inst]
+)
+
+box parse_label[Assembly* asm, Token* tokens] (
+    Label label
+    open strcpy[label.name, tokens[0].value]
+    label.name[open strlen[label.name] - 1] : 0
+    label.addr : asm.current_address
+    asm.labels[asm.label_count] : label
+    asm.label_count : asm.label_count + 1
+)
+
+box parse_directive[Assembly* asm, Token* tokens] (
+    if [ open strcmp[tokens[0].value, ".org"]] (
+        asm.current_address : open parse_number[tokens[1].value]
+    ) else if [open strcmp[tokens[0].value, ".define"]] (
+        open parse_define[asm, tokens]
+    ) else if [open strcmp[tokens[0].value, ".bytes"]] (
+        open parse_bytes[asm, tokens]
+    ) else if [open strcmp[tokens[0].value, ".reserve"]] (
+        open parse_reserve[asm, tokens]
+    ) else (
+        open set_error[asm, "Unknown directive"]
+    )
+)
+
+box parse_define[Assembly* asm, Token* tokens] ()
+box parse_reserve[Assembly* asm, Token* tokens] ()
+box parse_bytes[Assembly* asm, Token* tokens] ()
+
+box parse_hex[char* s] ()
+box parse_binary[char* s] ()
+box parse_decimal[char* s] ()

@@ -232,3 +232,8 @@ class EnumDeclarationNode(ASTNode):
     def __init__(self, name, values):
         self.name = name  # Имя enum (строка, "Color")
         self.values = values  # Список значений [(имя, значение), ...]
+        
+class ExitNode(ASTNode):
+    """Узел для оператора exit [error_code]"""
+    def __init__(self, expression_node):
+        self.expression_node = expression_node

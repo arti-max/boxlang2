@@ -26,6 +26,7 @@ class TokenType(Enum):
     NASM = auto()        # nasm["mov ax, 1"]
     NASMF = auto()       # nasmf["mov ax, {}", var]
     ENUM = auto()        # enum
+    EXIT = auto()        # exit
 
     # datatypes
     CHAR = auto()

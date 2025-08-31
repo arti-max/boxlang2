@@ -1,0 +1,24 @@
+
+box parse[Assembly* asm] (
+    asm.pos : 0
+    asm.current_token : asm.tokens[0]
+    asm.current_label : "\0\0\0\0\0\0\0\0"
+)
+
+box parser_advance[Assembly* asm] (
+    asm.pos: asm.pos+1
+    if [asm.pos < 512] (
+        asm.current_token : asm.tokens[asm.pos]
+    ) else (
+        asm.current_token : -1
+    )
+)
+
+box except[Assembly* asm, char tokentype] (
+    if [asm.current_token == -1 || asm.current_token.type != tokentype] (
+        open set_text_color[VGA_COLORS.RED]
+        open printf["Excepted token: %i, got: %i\n", tokentype, asm.current_token.type]
+        open set_text_color[VGA_COLORS.WHITE]
+    )
+    open parser_advance[asm]
+)

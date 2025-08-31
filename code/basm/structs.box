@@ -1,0 +1,120 @@
+
+
+struct Inst (
+    char mnemonic[3]    ## Only 3 symbols per instruction
+    Operand dst
+    Operand src
+    num16 addr
+)
+
+struct OpType (
+    OP_NONE
+    OP_REG16
+    OP_REG
+    OP_IMM
+)
+
+struct Operand (
+    Optype type
+    char reg_code
+    num16 imm_value
+    char name[8]
+)
+
+struct Label (
+    char name[8]       ## Max 8 symbols for label
+    num16 addr
+)
+
+struct Define (
+    char name[8]       ## Max 16 symbols for constant
+    num16 value
+)
+
+struct Bytes (
+    char data[16]       ## Max 16 bytes per directive
+)
+
+struct Reserve (
+    num16 count         ## count of bytes to reserve
+)
+
+## 'AL': 0, 'CL': 1, 'DL': 2, 'BL': 3, 'AH': 4, 'CH': 5, 'DH': 6, 'BH': 7
+enum reg8 (
+    AL, ## 0
+    CL, ## 1
+    DL, ## 2
+    BL, ## 3
+    AH, ## 4
+    CH, ## 5
+    DH, ## 6
+    BH, ## 7
+)
+
+## 'AX': 0, 'CX': 1, 'DX': 2, 'BX': 3, 'SP': 4, 'BP': 5, 'SI': 6, 'DI': 7
+enum reg16 (
+    AX, ## 0
+    CX, ## 1
+    DX, ## 2
+    BX, ## 3
+    SP, ## 4
+    BP, ## 5
+    SI, ## 6
+    DI, ## 7
+)
+
+struct Assembly (
+    Test test
+    ## Inst code[512]              ## Max 512 instruction per project
+    ## Label labels[64]            ## Max 64 labels per project
+    ## Define defines[32]          ## Max 32 defines per project
+    Statement statements
+    char source_code[4096]         ## Max 4096 symbols
+    ## num16 code_count            ## last code (inst) index
+    ## num16 label_count           ## last label index
+    ## num16 define_count          ## last define index
+    ## num16 line_count            ## last line index
+    num16 current_address       ## address counter
+    char error_msg[64]          ## error message
+    char is_error
+    ## for lexer
+    Token tokens[512]           ## tokens for lexer
+    num16 token_count
+    char current_char
+    char pos
+    char line
+    char column
+    ## for parser
+    Token current_token
+    char current_label[16]
+)
+
+struct Test (
+    char t[5]
+)
+
+struct Token (
+    char type          ## TokenType
+    char value_str[32]
+    num16 value_num
+    num16 line
+    num16 column
+)
+
+struct Statement (
+    char type       ## StmtType
+
+    Inst inst_data
+    Label label_data
+    Define define_data
+    Bytes bytes_data
+
+)
+
+enum StmtType (
+    STMT_NONE,      ## None
+    STMT_INST,      ## Instruction
+    STMT_LABEL,     ## Label
+    STMT_DEFINE,    ## .define
+    STMT_BYTES      ## .bytes
+)
