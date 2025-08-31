@@ -1,0 +1,9 @@
+boxlang/lib/__pycache__/AST.cpython-312.pyc
+boxlang/lib/__pycache__/Token.cpython-312.pyc
+boxlang/lib/__pycache__/TokenType.cpython-312.pyc
+boxlang/src/__pycache__/Compiler.cpython-312.pyc
+boxlang/src/__pycache__/CompilerNasm.cpython-312.pyc
+boxlang/src/__pycache__/ErrorHandler.cpython-312.pyc
+boxlang/src/__pycache__/Lexer.cpython-312.pyc
+boxlang/src/__pycache__/Parser.cpython-312.pyc
+boxlang/src/__pycache__/Preprocessor.cpython-312.pyc
